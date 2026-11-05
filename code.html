@@ -1,0 +1,21 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Coding Tool</title><link rel="stylesheet" href="assets/style.css"></head><body class="tool">
+<header class="site"><span class="brand">Aid Withdrawal Speech</span><nav><a href="index.html" >Overview</a><a href="codebook.html" >Codebook</a><a href="code.html" class="on">Coding tool</a></nav></header>
+<section id="loader" hidden>
+  <h1>Coding tool</h1>
+  <div id="resume"></div>
+  <p><label>Your initials<br><input type="text" id="raName" placeholder="e.g. JD" style="max-width:200px"></label></p>
+  <div id="drop"><p><b>Drag your batch file here</b> (e.g. <code>EN-B01.json</code>)<br>or a backup file to continue on this computer</p><input type="file" id="file" accept=".json,application/json"></div>
+  <p class="hint">Files are read in your browser only; nothing is uploaded.</p>
+</section>
+<div id="app" hidden>
+  <div class="bar">
+    <b id="who"></b><span class="meta" id="progress"></span><span class="spacer"></span>
+    <span class="meta" id="saved"></span>
+    <button id="prev" title="Previous (←)">← Prev</button><button id="next" title="Next (→)">Next →</button>
+    <button id="csv" class="primary">Export CSV</button><button id="backup">Backup</button><button id="switch">Switch batch</button>
+  </div>
+  <div class="layout"><div class="col" id="list"></div><div class="col" id="article"></div><div class="col" id="coding"></div></div>
+</div>
+<button id="selbtn" class="primary">+ Speech act from selection</button>
+<div class="toast" id="toast"></div>
+<script src="assets/codebook.js"></script><script src="assets/app.js"></script></body></html>
