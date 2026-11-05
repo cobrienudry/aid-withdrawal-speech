@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Aid Speech Coding</title>
+<meta name="robots" content="noindex, nofollow">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
@@ -102,6 +103,17 @@ button.btn.small { font-size: 12.5px; padding: 4px 9px; }
 .focus .eyebrow { font: 600 11px var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
 .focus h3 { margin: 0; font-size: 18px; }
 .focus p { margin: 0; color: var(--muted); max-width: 70ch; }
+.facts { display: flex; flex-wrap: wrap; gap: 6px 28px; margin: 8px 0 12px; }
+.fact { display: grid; gap: 0; min-width: 0; }
+.fact dt { font: 600 11px var(--sans); letter-spacing: .07em; text-transform: uppercase; color: var(--muted); }
+.fact dd { margin: 0; font-weight: 500; }
+.art .formrow a { color: var(--accent); font-weight: 600; font-size: 14px; }
+.fulltext { margin-top: 14px; border-top: 1px solid var(--line); padding-top: 12px; display: grid; gap: 10px; min-width: 0; }
+.tabs { display: flex; gap: 6px; flex-wrap: wrap; --c: var(--accent); }
+.textpane { white-space: pre-wrap; font: 16px/1.65 var(--serif); max-width: 72ch; max-height: 65vh; overflow: auto; padding-right: 8px; overflow-wrap: anywhere; }
+.textpane mark { background: var(--hi); color: inherit; border-radius: 2px; }
+.who { display: grid; gap: 1px; min-width: 0; }
+.spktitle { color: var(--muted); font-size: 14px; }
 </style>
 </head>
 <body>
@@ -335,11 +347,48 @@ function renderFocus() {
   $("focus").replaceChildren(el("div", { className: "eyebrow", textContent: "Coding one category" }), el("h3", { textContent: c.label }), el("p", { textContent: c.desc }));
   $("focus").hidden = false;
 }
+const LANGS = { en: "English", fr: "French", pt: "Portuguese", sw: "Swahili", am: "Amharic", de: "German", ar: "Arabic", so: "Somali" };
+const fact = (label, value) => el("div", { className: "fact" }, el("dt", { textContent: label }), el("dd", { textContent: value || "—" }));
 function renderArticle(it) {
+  const body = el("div", { className: "fulltext", id: "fulltext", hidden: true });
+  const toggle = el("button", { type: "button", className: "btn", textContent: "Show full article" });
+  toggle.onclick = () => showFullText(it, body, toggle);
   $("art").replaceChildren(
     el("h2", { textContent: it.title || "(untitled)" }),
-    el("div", { className: "meta" }, el("span", { textContent: it.country }), el("span", { textContent: it.source }), el("span", { textContent: it.date }),
-      el("span", { textContent: "lang " + it.lang }), el("a", { href: it.url, target: "_blank", rel: "noopener", textContent: "Open the original article for context ↗" })));
+    el("dl", { className: "facts" }, fact("Country", it.country), fact("Media outlet", it.source), fact("Date", it.date), fact("Language", LANGS[it.lang] || it.lang)),
+    el("div", { className: "formrow" }, toggle, el("a", { href: it.url, target: "_blank", rel: "noopener", textContent: "Original web page ↗" })),
+    body);
+}
+// Full article text lives in data/text/<shard>.json; fetched only when an RA opens it.
+const textLoads = {};
+async function showFullText(it, body, toggle) {
+  if (!body.hidden) { body.hidden = true; toggle.textContent = "Show full article"; return; }
+  toggle.disabled = true; toggle.textContent = "Loading…";
+  try {
+    textLoads[it.s] ||= fetch(`data/text/${it.s}.json`).then(r => { if (!r.ok) throw new Error(); return r.json(); }).catch(e => { delete textLoads[it.s]; throw e; });
+    const tx = (await textLoads[it.s])[it.id] || { t: "", en: "" };
+    const pane = el("div", { className: "textpane" });
+    const names = [...new Set((it.acts || []).map(a => a.name).filter(n => n && n.length >= 4))];
+    const fill = txt => { pane.replaceChildren(...highlight(txt || "(No text was captured for this article.)", names)); };
+    const tabs = tx.en ? el("div", { className: "tabs" }) : null;
+    if (tabs) {
+      const mk = (label, txt) => { const b = el("button", { type: "button", className: "chip", textContent: label }); b.onclick = () => { fill(txt); for (const x of tabs.children) x.setAttribute("aria-pressed", String(x === b)); }; return b; };
+      tabs.append(mk("English translation", tx.en), mk("Original (" + (LANGS[it.lang] || it.lang) + ")", tx.t));
+      tabs.children[0].setAttribute("aria-pressed", "true");
+    }
+    fill(tx.en || tx.t);
+    body.replaceChildren(...[el("p", { className: "where", textContent: "Speaker names are highlighted." }), tabs, pane].filter(Boolean));
+    body.hidden = false; toggle.textContent = "Hide full article";
+  } catch { toggle.textContent = "Couldn't load the text. Try again"; }
+  toggle.disabled = false;
+}
+function highlight(text, names) {
+  if (!names.length) return [document.createTextNode(text)];
+  const re = new RegExp(names.map(n => n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|"), "g");
+  const out = []; let last = 0, m;
+  while ((m = re.exec(text))) { out.push(document.createTextNode(text.slice(last, m.index)), el("mark", { textContent: m[0] })); last = m.index + m[0].length; }
+  out.push(document.createTextNode(text.slice(last)));
+  return out;
 }
 function keyBtn(opt, a, i) {
   const b = el("button", { type: "button" }, el("span", { textContent: opt.label }), el("kbd", { textContent: opt.keys.join("/") }));
@@ -370,7 +419,7 @@ function renderActs() {
       return box;
     });
     const card = el("article", { className: "act" + (i === active ? " on" : "") + (ok ? " ok" : "") },
-      el("div", { className: "top" }, el("span", { className: "num", textContent: `${ok ? "✓ " : ""}${i + 1}/${draft.acts.length}` }), el("span", { className: "spk", textContent: src.speaker })),
+      el("div", { className: "top" }, el("span", { className: "num", textContent: `${ok ? "✓ " : ""}${i + 1}/${draft.acts.length}` }), el("div", { className: "who" }, el("span", { className: "spk", textContent: src.name || src.speaker }), src.title ? el("span", { className: "spktitle", textContent: src.title }) : null)),
       el("p", { className: "speech", textContent: src.speech }), keys, ...fqs);
     card.onclick = () => { if (active !== i) { active = i; renderActs(); } };
     return card;
@@ -435,14 +484,14 @@ function go(d) { const p = pos + d; if (p < 0 || p > history.length) return; pos
 
 // ---------- CSV (one row per coder x task x speech act) ----------
 // In a single-category task only that category (and "bad") is judged: other category columns stay blank.
-const COLS = ["coder", "task", "article_id", "pool", "stratum", "country", "source", "date", "url", "title", "act_n", "speaker", "speech", "categories",
+const COLS = ["coder", "task", "article_id", "pool", "stratum", "country", "source", "date", "url", "title", "act_n", "speaker", "speaker_name", "speaker_title", "speech", "categories",
   ...ALL.flatMap(c => [c.id, ...(c.q || []).map(q => c.id + "." + q.id)]), "article_note", "codebook_version", "saved_at"];
 function rowsFor(c, L) {
   const it = byId[L.article];
   return L.acts.map((a, i) => {
     const src = it.acts[i] || {};
     const r = { coder: c, task: L.task, article_id: it.article_id, pool: it.pool, stratum: it.stratum, country: it.country, source: it.source, date: it.date, url: it.url, title: it.title,
-      act_n: a.k, speaker: src.speaker, speech: src.speech, categories: a.cats.filter(x => x !== "absent").join("|"), article_note: L.note, codebook_version: L.cbv, saved_at: new Date(L.at).toISOString() };
+      act_n: a.k, speaker: src.speaker, speaker_name: src.name, speaker_title: src.title, speech: src.speech, categories: a.cats.filter(x => x !== "absent").join("|"), article_note: L.note, codebook_version: L.cbv, saved_at: new Date(L.at).toISOString() };
     for (const cat of ALL) {
       const judged = L.task === "all" || cat.id === L.task || cat.id === "bad";
       r[cat.id] = judged ? (a.cats.includes(cat.id) ? 1 : 0) : "";
@@ -464,7 +513,7 @@ async function downloadMine() {
 // ---------- guide ----------
 function renderGuide() {
   const dl = $("guide-dl");
-  dl.append(el("dt", { textContent: "Your task" }), el("dd", { textContent: "Each screen shows one news article and the speech acts extracted from it (translated into English where needed). Code what the speaker says, not the journalist's framing. Open the original article when you need context." }),
+  dl.append(el("dt", { textContent: "Your task" }), el("dd", { textContent: "Each screen shows one news article and the speech acts extracted from it (translated into English where needed). Code what the speaker says, not the journalist's framing. Click “Show full article” when you need context; speaker names are highlighted in the text." }),
     el("dt", { textContent: "Two ways to code" }), el("dd", {}, el("ul", {},
       el("li", { textContent: "All categories: for each speech act, mark every category that applies (they can combine), or None of these." }),
       el("li", { textContent: "One category: for each speech act, answer whether that category is present (1 / Y) or not (0 / N). If present, answer its follow-up questions." }))));

@@ -1,6 +1,6 @@
 // CODEBOOK. Edit here; the app and its coding guide both read this file.
 // Bump CB_VERSION whenever a category or question changes: it is saved with every code.
-window.CB_VERSION = "draft-2026-11-05c";
+window.CB_VERSION = "draft-2026-11-05d";
 window.CATS = [
   { id: "pain", key: "1", label: "Pain", color: "--pain",
     desc: "The speaker describes harm, hardship, suffering, loss or risk to people, services or the economy.",
