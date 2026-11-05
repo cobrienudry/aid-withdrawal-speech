@@ -14,7 +14,7 @@
   --bg: #eef1f4; --surface: #ffffff; --ink: #172230; --muted: #5a6776; --line: #d3dae2;
   --accent: #1d4f91;          /* active card / primary action */
   --pain: #b2392f; --auto: #1f7a5a; --acc: #8a5a12; --none: #5d6670; --bad: #7a4b8c;
-  --tech: #2f5f8f; --sec: #6a4a2a; --praise: #a3407a; --topic: #3c6e71; --spk: #555f8a; --venue: #7a6a2a;
+  --tech: #2f5f8f; --sec: #6a4a2a; --irr: #6b7280; --praise: #a3407a; --topic: #3c6e71; --spk: #555f8a; --venue: #7a6a2a;
   --hi: #fff3c4; --danger: #a3302a;
   --sans: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
   --serif: "Source Serif 4", Georgia, serif;
@@ -23,11 +23,11 @@
 }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
   --bg: #11161c; --surface: #1a2129; --ink: #e4e9ef; --muted: #93a0ae; --line: #2e3842;
-  --accent: #6fa3e8; --pain: #e57a6e; --auto: #4fc08f; --acc: #d9a650; --none: #a3acb6; --bad: #c193d3; --tech: #7fb2e5; --sec: #c9a27a; --praise: #e58bbd; --topic: #7cc0c3; --spk: #a7b0e0; --venue: #d2c27a; --hi: #4a4120; --danger: #ef7f74;
+  --accent: #6fa3e8; --pain: #e57a6e; --auto: #4fc08f; --acc: #d9a650; --none: #a3acb6; --bad: #c193d3; --tech: #7fb2e5; --sec: #c9a27a; --irr: #a7adb7; --praise: #e58bbd; --topic: #7cc0c3; --spk: #a7b0e0; --venue: #d2c27a; --hi: #4a4120; --danger: #ef7f74;
   color-scheme: dark; } }
 :root[data-theme="dark"] {
   --bg: #11161c; --surface: #1a2129; --ink: #e4e9ef; --muted: #93a0ae; --line: #2e3842;
-  --accent: #6fa3e8; --pain: #e57a6e; --auto: #4fc08f; --acc: #d9a650; --none: #a3acb6; --bad: #c193d3; --tech: #7fb2e5; --sec: #c9a27a; --praise: #e58bbd; --topic: #7cc0c3; --spk: #a7b0e0; --venue: #d2c27a; --hi: #4a4120; --danger: #ef7f74;
+  --accent: #6fa3e8; --pain: #e57a6e; --auto: #4fc08f; --acc: #d9a650; --none: #a3acb6; --bad: #c193d3; --tech: #7fb2e5; --sec: #c9a27a; --irr: #a7adb7; --praise: #e58bbd; --topic: #7cc0c3; --spk: #a7b0e0; --venue: #d2c27a; --hi: #4a4120; --danger: #ef7f74;
   color-scheme: dark; }
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
@@ -120,6 +120,10 @@ button.btn.small { font-size: 12.5px; padding: 4px 9px; }
 .guide dt.gh { grid-column: 1 / -1; margin-top: 8px; font-size: 12px; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); }
 .guide dt.gh + dd { grid-column: 1 / -1; margin-top: -8px; }
 .chip kbd { font: 400 11px var(--mono); opacity: .7; margin-right: 6px; }
+.spacer { flex: 1; }
+button.btn.irr { border-color: var(--irr); color: var(--ink); }
+button.btn.irr:hover { background: color-mix(in srgb, var(--irr) 14%, var(--surface)); }
+button.btn.irr.on { background: var(--irr); color: var(--surface); }
 </style>
 </head>
 <body>
@@ -194,6 +198,8 @@ const $ = id => document.getElementById(id);
 const ABSENT = { id: "absent", keys: ["0", "n"], label: "Not present", color: "--none", desc: "The category does not appear in this speech act." };
 const ALL = [...CATS, ...EXCL], byCat = Object.fromEntries([...ALL, ...ATTRS, ABSENT].map(c => [c.id, c]));
 const isAttr = t => ATTRS.some(x => x.id === t);
+const SKIP = ["bad", "irrelevant"];               // flags that end an act: no further questions
+const skipped = a => a.cats.some(c => SKIP.includes(c));
 const STALE_MS = (CONFIG.STALE_MINUTES || 30) * 60 * 1000;
 let api, coder = "", task = "", items = [], byId = {};
 let claims = new Map(), mine = new Map(), history = [], pos = -1;
@@ -216,18 +222,18 @@ function taskLabel(t) { return t === "all" ? "All categories" : byCat[t].label +
 // the detail questions this task asks on every speech act
 const attrsFor = (t = task) => t === "all" ? ATTRS : ATTRS.filter(x => x.id === t);
 // everything whose questions are asked on this act: present themes + this task's details
-const askedOn = a => a.cats.includes("bad") ? [] : [...a.cats.filter(c => byCat[c].q), ...attrsFor().map(x => x.id)];
+const askedOn = a => skipped(a) ? [] : [...a.cats.filter(c => byCat[c].q), ...attrsFor().map(x => x.id)];
 function setTask(t) {
   task = t; store.set("task", t);
   if (t === "all") {
     OPTS = ALL.map(c => ({ ...c, keys: [c.key] }));
     EXCL_IDS = EXCL.map(e => e.id);
   } else if (isAttr(t)) {
-    OPTS = [{ ...byCat.bad, keys: ["x"] }];   // just the detail question, or flag the act
-    EXCL_IDS = ["bad"];
+    OPTS = SKIP.map(id => ({ ...byCat[id], keys: [byCat[id].key] }));   // just the detail question, or flag the act
+    EXCL_IDS = [...SKIP];
   } else {
     const c = byCat[t];
-    OPTS = [{ ...c, label: "Present: " + c.label, keys: ["1", "y"] }, ABSENT, { ...byCat.bad, keys: ["x"] }];
+    OPTS = [{ ...c, label: "Present: " + c.label, keys: ["1", "y"] }, ABSENT, ...SKIP.map(id => ({ ...byCat[id], keys: [byCat[id].key] }))];
     EXCL_IDS = OPTS.map(o => o.id);          // one answer per act in single-category mode
   }
 }
@@ -350,7 +356,7 @@ async function renderItem(w) {
   try { await ensureActs(it0); } catch { return gate("Couldn't load the speech acts", "Check your connection and reload the page."); }
   current = w; const it = it0, saved = mine.get(w);
   const local = store.get(`draft:${coder}:${w}`);
-  draft = saved ? { acts: saved.acts.map(a => ({ k: a.k, cats: [...a.cats], f: { ...a.f } })), note: saved.note || "" }
+  draft = saved ? { acts: saved.acts.map(a => ({ k: a.k, cats: [...a.cats], f: { ...a.f } })), note: saved.note || "", whole: !!saved.whole_irrelevant }
     : local || { acts: it.acts.map(a => ({ k: a.k, cats: [], f: {} })), note: "" };
   active = saved ? 0 : Math.max(0, draft.acts.findIndex(a => missing(a).length));
   renderFocus(); renderArticle(it); renderActs();
@@ -374,7 +380,9 @@ function renderArticle(it) {
   $("art").replaceChildren(
     el("h2", { textContent: it.title || "(untitled)" }),
     el("dl", { className: "facts" }, fact("Country", it.country), fact("Media outlet", it.source), fact("Date", it.date), fact("Language", LANGS[it.lang] || it.lang)),
-    el("div", { className: "formrow" }, toggle, el("a", { href: it.url, target: "_blank", rel: "noopener", textContent: "Original web page ↗" })),
+    el("div", { className: "formrow" }, toggle, el("a", { href: it.url, target: "_blank", rel: "noopener", textContent: "Original web page ↗" }),
+      el("span", { className: "spacer" }),
+      el("button", { type: "button", className: "btn irr" + (draft?.whole ? " on" : ""), id: "whole-irr", textContent: "Whole article not relevant → next", title: "Marks every speech act as not relevant, saves, and opens the next article (Shift+R)", onclick: markArticleIrrelevant })),
     body);
 }
 // Full article text lives in data/text/<shard>.json; fetched only when an RA opens it.
@@ -449,7 +457,7 @@ function renderActs() {
 }
 function persistDraft() { if (!mine.has(current)) store.set(`draft:${coder}:${current}`, draft); }
 function toggle(i, id) {
-  const a = draft.acts[i]; active = i;
+  const a = draft.acts[i]; active = i; draft.whole = false;
   const isExcl = EXCL_IDS.includes(id);
   if (a.cats.includes(id)) a.cats = a.cats.filter(c => c !== id);
   else a.cats = isExcl ? [id] : [...a.cats.filter(c => !EXCL_IDS.includes(c)), id];
@@ -459,7 +467,7 @@ function toggle(i, id) {
   renderActs(); scrollActive();
 }
 function answer(i, k, v, q) {
-  const a = draft.acts[i]; active = i;
+  const a = draft.acts[i]; active = i; draft.whole = false;
   if (q.many) {
     let s = new Set(a.f[k] || []);
     if (s.has(v)) s.delete(v);
@@ -487,13 +495,19 @@ async function openNext() {
     api.claim(coder, w).catch(() => status("Couldn't reserve this article. Your codes will still save.", true));
   }
 }
+// One click: every act "Not relevant to dataset", saved, next article.
+function markArticleIrrelevant() {
+  if (!draft || writing) return;
+  draft.acts.forEach(a => { a.cats = ["irrelevant"]; a.f = {}; });
+  draft.whole = true; persistDraft(); save();
+}
 async function save() {
   if (!current || writing) return;
   const bad = draft.acts.map((a, i) => [i, missing(a)]).filter(([, m]) => m.length);
   if (bad.length) { active = bad[0][0]; renderActs(); scrollActive(); return status(`Act ${bad[0][0] + 1} needs ${bad[0][1][0]}`, true); }
   writing = true; status("Saving…"); $("save").disabled = true;
   const w = current, it = itemOf(w);
-  const body = { item: w, article: it.id, article_id: it.article_id, task, coder, cbv: CB_VERSION, at: Date.now(), note: $("note").value.trim().slice(0, 400),
+  const body = { item: w, article: it.id, article_id: it.article_id, task, coder, cbv: CB_VERSION, at: Date.now(), note: $("note").value.trim().slice(0, 400), whole_irrelevant: !!draft.whole,
     acts: draft.acts.map(a => ({ k: a.k, cats: a.cats, f: a.f })) };
   try {
     await api.save(coder, w, body);
@@ -511,18 +525,18 @@ async function save() {
 function go(d) { const p = pos + d; if (p < 0 || p > history.length) return; pos = p; if (pos === history.length) openNext(); else renderItem(history[pos]); }
 
 // ---------- CSV (one row per coder x task x speech act) ----------
-// In a single-category task only that category (and "bad") is judged: other category columns stay blank.
+// In a single-category task only that category (and the skip flags) is judged: other category columns stay blank.
 const COLS = ["coder", "task", "article_id", "pool", "stratum", "country", "source", "date", "url", "title", "act_n", "speaker", "speaker_name", "speaker_title", "speech", "categories",
   ...ALL.flatMap(c => [c.id, ...(c.q || []).map(q => c.id + "." + q.id)]),
-  ...ATTRS.flatMap(c => c.q.map(q => c.id + "." + q.id)), "article_note", "codebook_version", "saved_at"];
+  ...ATTRS.flatMap(c => c.q.map(q => c.id + "." + q.id)), "article_not_relevant", "article_note", "codebook_version", "saved_at"];
 function rowsFor(c, L) {
   const it = byId[L.article];
   return L.acts.map((a, i) => {
     const src = it.acts[i] || {};
     const r = { coder: c, task: L.task, article_id: it.article_id, pool: it.pool, stratum: it.stratum, country: it.country, source: it.source, date: it.date, url: it.url, title: it.title,
-      act_n: a.k, speaker: src.speaker, speaker_name: src.name, speaker_title: src.title, speech: src.speech, categories: a.cats.filter(x => x !== "absent").join("|"), article_note: L.note, codebook_version: L.cbv, saved_at: new Date(L.at).toISOString() };
+      act_n: a.k, speaker: src.speaker, speaker_name: src.name, speaker_title: src.title, speech: src.speech, categories: a.cats.filter(x => x !== "absent").join("|"), article_not_relevant: L.whole_irrelevant ? 1 : 0, article_note: L.note, codebook_version: L.cbv, saved_at: new Date(L.at).toISOString() };
     for (const cat of ALL) {
-      const judged = L.task === "all" || cat.id === L.task || cat.id === "bad";
+      const judged = L.task === "all" || cat.id === L.task || SKIP.includes(cat.id);
       r[cat.id] = judged ? (a.cats.includes(cat.id) ? 1 : 0) : "";
       for (const q of cat.q || []) { const v = a.f[cat.id + "." + q.id]; r[cat.id + "." + q.id] = Array.isArray(v) ? v.join("|") : (v ?? ""); }
     }
@@ -558,7 +572,7 @@ function renderGuide() {
   ALL.forEach(guideItem);
   dl.append(el("dt", { className: "gh", textContent: "Details" }), el("dd", { textContent: "Answered for every speech act, unless it is Not a speech act." }));
   ATTRS.forEach(guideItem);
-  dl.append(el("dt", { className: "keyhelp", textContent: "Keys" }), el("dd", { className: "keyhelp", textContent: "All categories: 1–6 toggle a theme on the highlighted speech act, 0 = None of these, X = Not a speech act; click the detail answers. One theme: 1 or Y = present, 0 or N = not present, X = not a speech act. One detail: 1–9 pick an answer, X = not a speech act. J / ↓ next act, K / ↑ previous act. Enter saves the article once every act is coded. ← → move back and forward through your saved articles." }),
+  dl.append(el("dt", { className: "keyhelp", textContent: "Keys" }), el("dd", { className: "keyhelp", textContent: "All categories: 1–6 toggle a theme on the highlighted speech act, 0 = None of these, X = Not a speech act, R = Not relevant to dataset; click the detail answers. Shift+R = whole article not relevant (saves and moves on). One theme: 1 or Y = present, 0 or N = not present, X = not a speech act. One detail: 1–9 pick an answer, X = not a speech act. J / ↓ next act, K / ↑ previous act. Enter saves the article once every act is coded. ← → move back and forward through your saved articles." }),
     el("dt", { textContent: "Rules" }), el("dd", { textContent: "Use the note for hard calls. Don't discuss specific articles with other coders: some are coded by two people on purpose. Use the same coder code every session." }));
 }
 
@@ -583,12 +597,20 @@ async function start() {
   $("note").addEventListener("input", () => { if (draft) { draft.note = $("note").value; persistDraft(); } });
   $("dl").onclick = downloadMine;
   $("switch").onclick = () => { store.del("coder"); location.reload(); };
+  $("code-form").addEventListener("submit", e => {
+    e.preventDefault();
+    if (!items.length) return;                     // still loading
+    const v = $("code-input").value.trim().toLowerCase();
+    if (!/^[a-z0-9_-]{2,12}$/.test(v)) { $("code-err").textContent = "Use 2 to 12 letters or numbers, no spaces."; $("code-err").hidden = false; return; }
+    coder = v; store.set("coder", v); $("guide").open = false; begin();
+  });
   document.addEventListener("keydown", e => {
     if (e.target.tagName === "INPUT" || $("work").hidden || e.metaKey || e.ctrlKey || e.altKey) return;
+    if (e.key === "R" && e.shiftKey) { e.preventDefault(); return markArticleIrrelevant(); }
     const k = e.key.toLowerCase(), o = OPTS.find(x => x.keys.includes(k));
     const dq = isAttr(task) && byCat[task].q[0], dn = /^[1-9]$/.test(k) ? +k : 0;
     if (o) { e.preventDefault(); toggle(active, o.id); }
-    else if (dq && dn && dn <= dq.opts.length && !draft.acts[active].cats.includes("bad")) { e.preventDefault(); answer(active, task + "." + dq.id, dq.opts[dn - 1][0], dq); }
+    else if (dq && dn && dn <= dq.opts.length && !skipped(draft.acts[active])) { e.preventDefault(); answer(active, task + "." + dq.id, dq.opts[dn - 1][0], dq); }
     else if (k === "j" || k === "arrowdown") { e.preventDefault(); active = Math.min(active + 1, draft.acts.length - 1); renderActs(); scrollActive(); }
     else if (k === "k" || k === "arrowup") { e.preventDefault(); active = Math.max(active - 1, 0); renderActs(); scrollActive(); }
     else if (k === "enter") { e.preventDefault(); save(); }
@@ -612,12 +634,6 @@ async function start() {
   coder = store.get("coder") || "";
   if (!coder) { show("onboard"); $("guide").open = true; $("code-input").focus(); }
   else begin();
-  $("code-form").addEventListener("submit", e => {
-    e.preventDefault();
-    const v = $("code-input").value.trim().toLowerCase();
-    if (!/^[a-z0-9_-]{2,12}$/.test(v)) { $("code-err").textContent = "Use 2 to 12 letters or numbers, no spaces."; $("code-err").hidden = false; return; }
-    coder = v; store.set("coder", v); $("guide").open = false; begin();
-  });
 }
 start();
 </script>

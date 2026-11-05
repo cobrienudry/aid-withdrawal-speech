@@ -1,6 +1,6 @@
 // CODEBOOK. Edit here; the app and its coding guide both read this file.
 // Bump CB_VERSION whenever a category or question changes: it is saved with every code.
-window.CB_VERSION = "v1-2026-11-05";
+window.CB_VERSION = "v1.1-2026-11-05";
 
 // Actor lists reused by several questions.
 const ACTORS = [
@@ -52,6 +52,7 @@ window.CATS = [
 window.EXCL = [
   { id: "none", key: "0", label: "None of these", color: "--none", desc: "A real speech act with none of the themes above." },
   { id: "bad", key: "x", label: "Not a speech act", color: "--bad", desc: "Extraction error: no identifiable speaker, the journalist's own words, or garbled text. Add a note. No further questions are asked." },
+  { id: "irrelevant", key: "r", label: "Not relevant to dataset", color: "--irr", desc: "A real speech act, but off-topic for this project. No further questions are asked; the next speech act opens. If the whole article is off-topic, use “Whole article not relevant” above the speech acts instead." },
 ];
 
 // DETAILS: answered for every speech act (unless it is "Not a speech act").
