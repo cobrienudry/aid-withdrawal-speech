@@ -2,14 +2,17 @@
 
 Live: https://cobrienudry.github.io/aid-withdrawal-speech/
 
-RAs see one news article at a time with the speech acts extracted from it. They choose a task:
+RAs see one news article at a time with the speech acts extracted from it. The codebook
+(`assets/codebook.js`) has **themes** (Pain, Autonomy, Technocratic, Security, Accommodation, Praise:
+present or not, several can apply, each with follow-up questions) and **details** answered for every
+speech act (Topic, Speaker authority / type, Venue / formality). RAs choose a task:
 
-- **All categories, speech by speech**: mark every category that applies to each speech act
-  (keys 1–3, 0 = none of these, X = not a speech act).
-- **One category** (e.g. *Pain only*): for each speech act, decide whether that category is
-  present (1/Y) or not (0/N), plus X = not a speech act.
+- **All categories, speech by speech**: mark every theme that applies (keys 1–6, 0 = none of these,
+  X = not a speech act), answer the follow-ups, then the three details.
+- **One theme** (e.g. *Pain only*): present (1/Y) or not (0/N) for each speech act, plus follow-ups.
+- **One detail** (e.g. *Venue only*): answer just that question for each speech act (keys 1–9).
 
-Follow-up questions appear under a category whenever it is marked present. Each article × task is
+Follow-up questions appear under a theme whenever it is marked present. Each article × task is
 its own unit of work, with its own queue position, save and double-coding, so RAs can be assigned
 to different tasks and switch between them. Same workflow as the Cape Town PV
 labelling page: a coder code, a shared queue, and ~15% of articles double-coded for agreement.
@@ -54,7 +57,8 @@ If you change `Code.gs`, use **Deploy → Manage deployments → Edit → New ve
 ## Output columns
 
 `coder, task, article_id, pool, stratum, country, source, date, url, title, act_n, speaker, speaker_name, speaker_title, speech, categories,`
-then one 0/1 column per category (blank when the task did not judge that category: in a single-category task only that category and `bad` are coded) and one column per follow-up question (e.g. `pain.aid_specific`,
-`pain.blame`, `accommodation.type` with multiple answers joined by `|`), then
+then one 0/1 column per theme (blank when the task did not judge that theme) and one column per
+follow-up question (e.g. `pain.aid_specific`, `accommodation.type`, multiple answers joined by `|`),
+then `topic.topic`, `speaker.type`, `venue.venue`, then
 `article_note, codebook_version, saved_at`. `article_id` and `act_n` match `article_id` and
 `speaker_n` in `speech_Nov26.csv` / `speech_Nov26_french.csv`.

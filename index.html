@@ -14,6 +14,7 @@
   --bg: #eef1f4; --surface: #ffffff; --ink: #172230; --muted: #5a6776; --line: #d3dae2;
   --accent: #1d4f91;          /* active card / primary action */
   --pain: #b2392f; --auto: #1f7a5a; --acc: #8a5a12; --none: #5d6670; --bad: #7a4b8c;
+  --tech: #2f5f8f; --sec: #6a4a2a; --praise: #a3407a; --topic: #3c6e71; --spk: #555f8a; --venue: #7a6a2a;
   --hi: #fff3c4; --danger: #a3302a;
   --sans: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
   --serif: "Source Serif 4", Georgia, serif;
@@ -22,11 +23,11 @@
 }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
   --bg: #11161c; --surface: #1a2129; --ink: #e4e9ef; --muted: #93a0ae; --line: #2e3842;
-  --accent: #6fa3e8; --pain: #e57a6e; --auto: #4fc08f; --acc: #d9a650; --none: #a3acb6; --bad: #c193d3; --hi: #4a4120; --danger: #ef7f74;
+  --accent: #6fa3e8; --pain: #e57a6e; --auto: #4fc08f; --acc: #d9a650; --none: #a3acb6; --bad: #c193d3; --tech: #7fb2e5; --sec: #c9a27a; --praise: #e58bbd; --topic: #7cc0c3; --spk: #a7b0e0; --venue: #d2c27a; --hi: #4a4120; --danger: #ef7f74;
   color-scheme: dark; } }
 :root[data-theme="dark"] {
   --bg: #11161c; --surface: #1a2129; --ink: #e4e9ef; --muted: #93a0ae; --line: #2e3842;
-  --accent: #6fa3e8; --pain: #e57a6e; --auto: #4fc08f; --acc: #d9a650; --none: #a3acb6; --bad: #c193d3; --hi: #4a4120; --danger: #ef7f74;
+  --accent: #6fa3e8; --pain: #e57a6e; --auto: #4fc08f; --acc: #d9a650; --none: #a3acb6; --bad: #c193d3; --tech: #7fb2e5; --sec: #c9a27a; --praise: #e58bbd; --topic: #7cc0c3; --spk: #a7b0e0; --venue: #d2c27a; --hi: #4a4120; --danger: #ef7f74;
   color-scheme: dark; }
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
@@ -114,6 +115,11 @@ button.btn.small { font-size: 12.5px; padding: 4px 9px; }
 .textpane mark { background: var(--hi); color: inherit; border-radius: 2px; }
 .who { display: grid; gap: 1px; min-width: 0; }
 .spktitle { color: var(--muted); font-size: 14px; }
+.taskhead { grid-column: 1 / -1; margin: 8px 0 0; font: 600 12px var(--sans); letter-spacing: .07em; text-transform: uppercase; color: var(--muted); }
+.fq.detail { border-left-style: dotted; }
+.guide dt.gh { grid-column: 1 / -1; margin-top: 8px; font-size: 12px; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); }
+.guide dt.gh + dd { grid-column: 1 / -1; margin-top: -8px; }
+.chip kbd { font: 400 11px var(--mono); opacity: .7; margin-right: 6px; }
 </style>
 </head>
 <body>
@@ -186,7 +192,8 @@ button.btn.small { font-size: 12.5px; padding: 4px 9px; }
 <script>
 const $ = id => document.getElementById(id);
 const ABSENT = { id: "absent", keys: ["0", "n"], label: "Not present", color: "--none", desc: "The category does not appear in this speech act." };
-const ALL = [...CATS, ...EXCL], byCat = Object.fromEntries([...ALL, ABSENT].map(c => [c.id, c]));
+const ALL = [...CATS, ...EXCL], byCat = Object.fromEntries([...ALL, ...ATTRS, ABSENT].map(c => [c.id, c]));
+const isAttr = t => ATTRS.some(x => x.id === t);
 const STALE_MS = (CONFIG.STALE_MINUTES || 30) * 60 * 1000;
 let api, coder = "", task = "", items = [], byId = {};
 let claims = new Map(), mine = new Map(), history = [], pos = -1;
@@ -200,16 +207,24 @@ const store = {
 };
 
 // ---------- tasks ----------
-// "all": every category, speech by speech. A category id: only that category, present or not.
+// "all": every theme plus every detail, speech by speech. A theme id: only that theme, present or not.
+// A detail id (topic, speaker, venue): only that detail question.
 // Each (article, task) is its own unit of work: its own claim, save and double-coding.
 const wid = (itemId, t = task) => itemId + "-" + t;
 const itemOf = w => byId[w.slice(0, w.lastIndexOf("-"))];
 function taskLabel(t) { return t === "all" ? "All categories" : byCat[t].label + " only"; }
+// the detail questions this task asks on every speech act
+const attrsFor = (t = task) => t === "all" ? ATTRS : ATTRS.filter(x => x.id === t);
+// everything whose questions are asked on this act: present themes + this task's details
+const askedOn = a => a.cats.includes("bad") ? [] : [...a.cats.filter(c => byCat[c].q), ...attrsFor().map(x => x.id)];
 function setTask(t) {
   task = t; store.set("task", t);
   if (t === "all") {
     OPTS = ALL.map(c => ({ ...c, keys: [c.key] }));
     EXCL_IDS = EXCL.map(e => e.id);
+  } else if (isAttr(t)) {
+    OPTS = [{ ...byCat.bad, keys: ["x"] }];   // just the detail question, or flag the act
+    EXCL_IDS = ["bad"];
   } else {
     const c = byCat[t];
     OPTS = [{ ...c, label: "Present: " + c.label, keys: ["1", "y"] }, ABSENT, { ...byCat.bad, keys: ["x"] }];
@@ -225,7 +240,10 @@ function renderTaskPicker() {
   };
   $("tasks").replaceChildren(
     card("all", "All categories, speech by speech", "For each speech act, mark every category that applies. Best for a full first pass."),
-    ...CATS.map(c => card(c.id, c.label + " only", `For each speech act, decide whether ${c.label.toLowerCase()} appears${c.q.length ? ", then answer the follow-up questions" : ""}.`)));
+    el("h3", { className: "taskhead", textContent: "One theme at a time" }),
+    ...CATS.map(c => card(c.id, c.label + " only", `For each speech act, decide whether ${c.label.toLowerCase()} appears${c.q.length ? ", then answer the follow-up questions" : ""}.`)),
+    el("h3", { className: "taskhead", textContent: "One detail at a time" }),
+    ...ATTRS.map(c => card(c.id, c.label + " only", `For each speech act, answer: ${c.q[0].label.replace(/ \(.*\)$/, "")}`)));
   show("taskpick");
 }
 
@@ -305,15 +323,15 @@ function renderStats() {
 // ---------- validation ----------
 function visibleQs(cat, a) { return (cat.q || []).filter(q => !q.showIf || a.f[cat.id + "." + q.showIf[0]] === q.showIf[1]); }
 function missing(a) {
-  if (!a.cats.length) return [task === "all" ? "a category" : "an answer"];
+  if (!a.cats.length && !isAttr(task)) return [task === "all" ? "a category" : "an answer"];
   const out = [];
-  for (const c of a.cats) { const cat = byCat[c];
+  for (const c of askedOn(a)) { const cat = byCat[c];
     for (const q of visibleQs(cat, a)) { const v = a.f[c + "." + q.id]; if (v == null || (Array.isArray(v) && !v.length)) out.push(cat.label + ": " + q.label.replace(/\?.*$/, "?")); } }
   return out;
 }
 function cleanFollowups(a) {
   const keep = {};
-  for (const c of a.cats) for (const q of visibleQs(byCat[c], a)) { const k = c + "." + q.id; if (k in a.f) keep[k] = a.f[k]; }
+  for (const c of askedOn(a)) for (const q of visibleQs(byCat[c], a)) { const k = c + "." + q.id; if (k in a.f) keep[k] = a.f[k]; }
   a.f = keep;
 }
 
@@ -344,7 +362,7 @@ async function renderItem(w) {
 function renderFocus() {
   if (task === "all") { $("focus").hidden = true; return; }
   const c = byCat[task]; $("focus").style.setProperty("--c", `var(${c.color})`);
-  $("focus").replaceChildren(el("div", { className: "eyebrow", textContent: "Coding one category" }), el("h3", { textContent: c.label }), el("p", { textContent: c.desc }));
+  $("focus").replaceChildren(el("div", { className: "eyebrow", textContent: isAttr(task) ? "Coding one detail" : "Coding one theme" }), el("h3", { textContent: c.label }), el("p", { textContent: c.desc }));
   $("focus").hidden = false;
 }
 const LANGS = { en: "English", fr: "French", pt: "Portuguese", sw: "Swahili", am: "Amharic", de: "German", ar: "Arabic", so: "Somali" };
@@ -403,15 +421,17 @@ function renderActs() {
     const src = it.acts[i], ok = !missing(a).length;
     const main = OPTS.filter(o => !EXCL.some(e => e.id === o.id) && o.id !== "absent"), rest = OPTS.filter(o => !main.includes(o));
     const keys = el("div", { className: "keys" }, ...main.map(o => keyBtn(o, a, i)), el("span", { className: "sep" }), ...rest.map(o => keyBtn(o, a, i)));
-    const fqs = a.cats.filter(c => byCat[c].q?.length).map(c => {
-      const cat = byCat[c], box = el("div", { className: "fq" }); box.style.setProperty("--c", `var(${cat.color})`);
+    const fqs = askedOn(a).filter(c => byCat[c].q?.length).map(c => {
+      const cat = byCat[c], box = el("div", { className: "fq" + (isAttr(c) ? " detail" : "") }); box.style.setProperty("--c", `var(${cat.color})`);
       for (const q of visibleQs(cat, a)) {
         const k = c + "." + q.id, v = a.f[k];
         const row = el("div", { className: "q" + (v == null || (Array.isArray(v) && !v.length) ? " miss" : "") }, el("span", { textContent: cat.label + " · " + q.label }));
-        for (const [ov, ol] of q.opts) {
+        const numbered = c === task && isAttr(task) && q === cat.q[0];   // number keys pick these
+        for (const [j, [ov, ol]] of q.opts.entries()) {
           const on = q.many ? (v || []).includes(ov) : v === ov;
           const ch = el("button", { type: "button", className: "chip", textContent: ol }); ch.setAttribute("aria-pressed", String(on));
-          ch.onclick = e => { e.stopPropagation(); answer(i, k, ov, q.many); };
+          if (numbered && j < 9) ch.prepend(el("kbd", { className: "keyhelp", textContent: String(j + 1) }));
+          ch.onclick = e => { e.stopPropagation(); answer(i, k, ov, q); };
           row.append(ch);
         }
         box.append(row);
@@ -435,15 +455,23 @@ function toggle(i, id) {
   else a.cats = isExcl ? [id] : [...a.cats.filter(c => !EXCL_IDS.includes(c)), id];
   cleanFollowups(a); persistDraft();
   // an exclusive answer with nothing to follow up finishes the act: move on
-  if (isExcl && a.cats.length && !byCat[id].q?.length && i < draft.acts.length - 1) active = i + 1;
+  if (isExcl && a.cats.length && !missing(a).length && i < draft.acts.length - 1) active = i + 1;
   renderActs(); scrollActive();
 }
-function answer(i, k, v, many) {
+function answer(i, k, v, q) {
   const a = draft.acts[i]; active = i;
-  if (many) { const s = new Set(a.f[k] || []); s.has(v) ? s.delete(v) : s.add(v); a.f[k] = [...s]; }
-  else a.f[k] = a.f[k] === v ? undefined : v;
+  if (q.many) {
+    let s = new Set(a.f[k] || []);
+    if (s.has(v)) s.delete(v);
+    else if (v === q.only) s = new Set([v]);          // "Neither" clears the others
+    else { s.delete(q.only); s.add(v); }
+    a.f[k] = [...s];
+  } else a.f[k] = a.f[k] === v ? undefined : v;
   if (a.f[k] === undefined) delete a.f[k];
-  cleanFollowups(a); persistDraft(); renderActs();
+  cleanFollowups(a); persistDraft();
+  // in a one-detail task, a single-choice answer finishes the act: move on
+  if (isAttr(task) && !q.many && a.f[k] !== undefined && !missing(a).length && i < draft.acts.length - 1) active = i + 1;
+  renderActs(); if (active !== i) scrollActive();
 }
 function scrollActive() { const c = $("acts").children[active]; if (c) { const r = c.getBoundingClientRect(); if (r.top < 60 || r.bottom > innerHeight - 90) c.scrollIntoView({ block: "center", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" }); } }
 
@@ -485,7 +513,8 @@ function go(d) { const p = pos + d; if (p < 0 || p > history.length) return; pos
 // ---------- CSV (one row per coder x task x speech act) ----------
 // In a single-category task only that category (and "bad") is judged: other category columns stay blank.
 const COLS = ["coder", "task", "article_id", "pool", "stratum", "country", "source", "date", "url", "title", "act_n", "speaker", "speaker_name", "speaker_title", "speech", "categories",
-  ...ALL.flatMap(c => [c.id, ...(c.q || []).map(q => c.id + "." + q.id)]), "article_note", "codebook_version", "saved_at"];
+  ...ALL.flatMap(c => [c.id, ...(c.q || []).map(q => c.id + "." + q.id)]),
+  ...ATTRS.flatMap(c => c.q.map(q => c.id + "." + q.id)), "article_note", "codebook_version", "saved_at"];
 function rowsFor(c, L) {
   const it = byId[L.article];
   return L.acts.map((a, i) => {
@@ -497,6 +526,7 @@ function rowsFor(c, L) {
       r[cat.id] = judged ? (a.cats.includes(cat.id) ? 1 : 0) : "";
       for (const q of cat.q || []) { const v = a.f[cat.id + "." + q.id]; r[cat.id + "." + q.id] = Array.isArray(v) ? v.join("|") : (v ?? ""); }
     }
+    for (const at of ATTRS) for (const q of at.q) { const v = a.f[at.id + "." + q.id]; r[at.id + "." + q.id] = Array.isArray(v) ? v.join("|") : (v ?? ""); }
     return COLS.map(k => r[k] ?? "");
   });
 }
@@ -514,16 +544,21 @@ async function downloadMine() {
 function renderGuide() {
   const dl = $("guide-dl");
   dl.append(el("dt", { textContent: "Your task" }), el("dd", { textContent: "Each screen shows one news article and the speech acts extracted from it (translated into English where needed). Code what the speaker says, not the journalist's framing. Click “Show full article” when you need context; speaker names are highlighted in the text." }),
-    el("dt", { textContent: "Two ways to code" }), el("dd", {}, el("ul", {},
-      el("li", { textContent: "All categories: for each speech act, mark every category that applies (they can combine), or None of these." }),
-      el("li", { textContent: "One category: for each speech act, answer whether that category is present (1 / Y) or not (0 / N). If present, answer its follow-up questions." }))));
-  for (const c of ALL) {
+    el("dt", { textContent: "Ways to code" }), el("dd", {}, el("ul", {},
+      el("li", { textContent: "All categories: for each speech act, mark every theme that applies (they can combine) or None of these, answer the follow-ups, then the three details (topic, speaker, venue)." }),
+      el("li", { textContent: "One theme: for each speech act, answer whether that theme is present (1 / Y) or not (0 / N). If present, answer its follow-up questions." }),
+      el("li", { textContent: "One detail: for each speech act, answer just that question (keys 1–9 pick an option)." }))),
+    el("dt", { className: "gh", textContent: "Themes" }), el("dd", { textContent: "Present or not in a speech act. Several can apply." }));
+  const guideItem = c => {
     const sw = el("span", { className: "sw" }); sw.style.setProperty("--c", `var(${c.color})`);
     const dd = el("dd", { textContent: c.desc });
     if (c.q?.length) dd.append(el("ul", {}, ...c.q.map(q => el("li", { textContent: q.label + (q.showIf ? ` (asked only if the answer above is “${q.showIf[1]}”)` : "") + ": " + q.opts.map(o => o[1]).join(" / ") }))));
-    dl.append(el("dt", {}, sw, document.createTextNode(c.label + " "), el("kbd", { className: "keyhelp", textContent: c.key })), dd);
-  }
-  dl.append(el("dt", { className: "keyhelp", textContent: "Keys" }), el("dd", { className: "keyhelp", textContent: "All categories: 1–3 toggle a category on the highlighted speech act, 0 = None of these, X = Not a speech act. One category: 1 or Y = present, 0 or N = not present, X = not a speech act. J / ↓ next act, K / ↑ previous act. Enter saves the article once every act is coded. ← → move back and forward through your saved articles." }),
+    dl.append(el("dt", {}, sw, document.createTextNode(c.label + " "), c.key ? el("kbd", { className: "keyhelp", textContent: c.key }) : null), dd);
+  };
+  ALL.forEach(guideItem);
+  dl.append(el("dt", { className: "gh", textContent: "Details" }), el("dd", { textContent: "Answered for every speech act, unless it is Not a speech act." }));
+  ATTRS.forEach(guideItem);
+  dl.append(el("dt", { className: "keyhelp", textContent: "Keys" }), el("dd", { className: "keyhelp", textContent: "All categories: 1–6 toggle a theme on the highlighted speech act, 0 = None of these, X = Not a speech act; click the detail answers. One theme: 1 or Y = present, 0 or N = not present, X = not a speech act. One detail: 1–9 pick an answer, X = not a speech act. J / ↓ next act, K / ↑ previous act. Enter saves the article once every act is coded. ← → move back and forward through your saved articles." }),
     el("dt", { textContent: "Rules" }), el("dd", { textContent: "Use the note for hard calls. Don't discuss specific articles with other coders: some are coded by two people on purpose. Use the same coder code every session." }));
 }
 
@@ -551,7 +586,9 @@ async function start() {
   document.addEventListener("keydown", e => {
     if (e.target.tagName === "INPUT" || $("work").hidden || e.metaKey || e.ctrlKey || e.altKey) return;
     const k = e.key.toLowerCase(), o = OPTS.find(x => x.keys.includes(k));
+    const dq = isAttr(task) && byCat[task].q[0], dn = /^[1-9]$/.test(k) ? +k : 0;
     if (o) { e.preventDefault(); toggle(active, o.id); }
+    else if (dq && dn && dn <= dq.opts.length && !draft.acts[active].cats.includes("bad")) { e.preventDefault(); answer(active, task + "." + dq.id, dq.opts[dn - 1][0], dq); }
     else if (k === "j" || k === "arrowdown") { e.preventDefault(); active = Math.min(active + 1, draft.acts.length - 1); renderActs(); scrollActive(); }
     else if (k === "k" || k === "arrowup") { e.preventDefault(); active = Math.max(active - 1, 0); renderActs(); scrollActive(); }
     else if (k === "enter") { e.preventDefault(); save(); }
@@ -571,7 +608,7 @@ async function start() {
   try { items = await (await fetch("data/index.json")).json(); } catch { return gate("Couldn't load the speech acts", "Reload the page. If this keeps happening, tell your supervisor."); }
   byId = Object.fromEntries(items.map(it => [it.id, it]));
 
-  const t = store.get("task"); if (t && (t === "all" || CATS.some(c => c.id === t))) setTask(t);
+  const t = store.get("task"); if (t && (t === "all" || CATS.some(c => c.id === t) || isAttr(t))) setTask(t);
   coder = store.get("coder") || "";
   if (!coder) { show("onboard"); $("guide").open = true; $("code-input").focus(); }
   else begin();
