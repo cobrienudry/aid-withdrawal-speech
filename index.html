@@ -63,7 +63,7 @@ header h1 span { color: var(--muted); font-weight: 500; }
 .fq { display: grid; gap: 8px; border-left: 3px solid var(--c); padding: 4px 0 4px 12px; }
 .fq .q { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; font-size: 14px; }
 .fq .q > span { color: var(--muted); min-width: 0; }
-.fq .q.miss > span { color: var(--danger); }
+.fq .q.miss > span { color: var(--muted); font-style: italic; }
 .chip { font: 500 13px var(--sans); color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 999px; padding: 4px 11px; cursor: pointer; }
 .chip[aria-pressed="true"] { background: var(--c); border-color: var(--c); color: var(--surface); }
 .savebar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 5; background: var(--surface); border-top: 1px solid var(--line);
@@ -328,8 +328,12 @@ function renderStats() {
 
 // ---------- validation ----------
 function visibleQs(cat, a) { return (cat.q || []).filter(q => !q.showIf || a.f[cat.id + "." + q.showIf[0]] === q.showIf[1]); }
+// Only the main answer is required (a theme, None of these, or a skip flag); follow-ups and details are optional.
 function missing(a) {
-  if (!a.cats.length && !isAttr(task)) return [task === "all" ? "a category" : "an answer"];
+  return !a.cats.length && !isAttr(task) ? [task === "all" ? "a category" : "an answer"] : [];
+}
+// optional questions still unanswered on this act (shown, never required)
+function unanswered(a) {
   const out = [];
   for (const c of askedOn(a)) { const cat = byCat[c];
     for (const q of visibleQs(cat, a)) { const v = a.f[c + "." + q.id]; if (v == null || (Array.isArray(v) && !v.length)) out.push(cat.label + ": " + q.label.replace(/\?.*$/, "?")); } }
@@ -463,7 +467,7 @@ function toggle(i, id) {
   else a.cats = isExcl ? [id] : [...a.cats.filter(c => !EXCL_IDS.includes(c)), id];
   cleanFollowups(a); persistDraft();
   // an exclusive answer with nothing to follow up finishes the act: move on
-  if (isExcl && a.cats.length && !missing(a).length && i < draft.acts.length - 1) active = i + 1;
+  if (isExcl && a.cats.length && !unanswered(a).length && i < draft.acts.length - 1) active = i + 1;
   renderActs(); scrollActive();
 }
 function answer(i, k, v, q) {
@@ -478,7 +482,7 @@ function answer(i, k, v, q) {
   if (a.f[k] === undefined) delete a.f[k];
   cleanFollowups(a); persistDraft();
   // in a one-detail task, a single-choice answer finishes the act: move on
-  if (isAttr(task) && !q.many && a.f[k] !== undefined && !missing(a).length && i < draft.acts.length - 1) active = i + 1;
+  if (isAttr(task) && !q.many && a.f[k] !== undefined && !unanswered(a).length && i < draft.acts.length - 1) active = i + 1;
   renderActs(); if (active !== i) scrollActive();
 }
 function scrollActive() { const c = $("acts").children[active]; if (c) { const r = c.getBoundingClientRect(); if (r.top < 60 || r.bottom > innerHeight - 90) c.scrollIntoView({ block: "center", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" }); } }
@@ -572,8 +576,8 @@ function renderGuide() {
   ALL.forEach(guideItem);
   dl.append(el("dt", { className: "gh", textContent: "Details" }), el("dd", { textContent: "Answered for every speech act, unless it is Not a speech act." }));
   ATTRS.forEach(guideItem);
-  dl.append(el("dt", { className: "keyhelp", textContent: "Keys" }), el("dd", { className: "keyhelp", textContent: "All categories: 1–6 toggle a theme on the highlighted speech act, 0 = None of these, X = Not a speech act, R = Not relevant to dataset; click the detail answers. Shift+R = whole article not relevant (saves and moves on). One theme: 1 or Y = present, 0 or N = not present, X = not a speech act. One detail: 1–9 pick an answer, X = not a speech act. J / ↓ next act, K / ↑ previous act. Enter saves the article once every act is coded. ← → move back and forward through your saved articles." }),
-    el("dt", { textContent: "Rules" }), el("dd", { textContent: "Use the note for hard calls. Don't discuss specific articles with other coders: some are coded by two people on purpose. Use the same coder code every session." }));
+  dl.append(el("dt", { className: "keyhelp", textContent: "Keys" }), el("dd", { className: "keyhelp", textContent: "All categories: 1–6 toggle a theme on the highlighted speech act, 0 = None of these, X = Not a speech act, R = Not relevant to dataset; click the detail answers. Shift+R = whole article not relevant (saves and moves on). One theme: 1 or Y = present, 0 or N = not present, X = not a speech act. One detail: 1–9 pick an answer, X = not a speech act. J / ↓ next act, K / ↑ previous act. Enter saves the article once every act has its main answer. ← → move back and forward through your saved articles." }),
+    el("dt", { textContent: "Rules" }), el("dd", { textContent: "Each speech act needs its main answer (a theme, None of these, Not a speech act or Not relevant). Follow-up questions and details are optional: answer them when the text supports an answer and leave them blank otherwise. Use the note for hard calls. Don't discuss specific articles with other coders: some are coded by two people on purpose. Use the same coder code every session." }));
 }
 
 // ---------- start ----------

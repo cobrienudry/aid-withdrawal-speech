@@ -12,7 +12,9 @@ speech act (Topic, Speaker authority / type, Venue / formality). RAs choose a ta
 - **One theme** (e.g. *Pain only*): present (1/Y) or not (0/N) for each speech act, plus follow-ups.
 - **One detail** (e.g. *Venue only*): answer just that question for each speech act (keys 1–9).
 
-Follow-up questions appear under a theme whenever it is marked present. Each article × task is
+Follow-up questions appear under a theme whenever it is marked present. Only the main answer per
+speech act is required (a theme, none of these, or a skip flag); follow-ups and details are optional
+and export blank when left unanswered. Each article × task is
 its own unit of work, with its own queue position, save and double-coding, so RAs can be assigned
 to different tasks and switch between them. Same workflow as the Cape Town PV
 labelling page: a coder code, a shared queue, and ~15% of articles double-coded for agreement.
