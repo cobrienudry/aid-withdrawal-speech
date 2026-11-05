@@ -1,28 +1,453 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Aid Withdrawal Speech</title><link rel="stylesheet" href="assets/style.css"></head><body>
-<header class="site"><span class="brand">Aid Withdrawal Speech</span><nav><a href="index.html" class="on">Overview</a><a href="codebook.html" >Codebook</a><a href="code.html" >Coding tool</a></nav></header>
-<main class="doc">
-<h1>Aid Withdrawal Speech: RA coding</h1>
-<p class="lede">How do African governments, donors and publics talk about foreign aid, and about its withdrawal? Research assistants read news articles from African media (October 2024 – October 2025), identify every speech act, and code the theme of each one.</p>
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Aid Speech Coding</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one reading column. Article strip on top, then a stack of speech-act cards,
+   each with its category keys; save bar pinned to the bottom. */
+:root {
+  --bg: #eef1f4; --surface: #ffffff; --ink: #172230; --muted: #5a6776; --line: #d3dae2;
+  --accent: #1d4f91;          /* active card / primary action */
+  --pain: #b2392f; --auto: #1f7a5a; --acc: #8a5a12; --none: #5d6670; --bad: #7a4b8c;
+  --hi: #fff3c4; --danger: #a3302a;
+  --sans: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+  --serif: "Source Serif 4", Georgia, serif;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #11161c; --surface: #1a2129; --ink: #e4e9ef; --muted: #93a0ae; --line: #2e3842;
+  --accent: #6fa3e8; --pain: #e57a6e; --auto: #4fc08f; --acc: #d9a650; --none: #a3acb6; --bad: #c193d3; --hi: #4a4120; --danger: #ef7f74;
+  color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #11161c; --surface: #1a2129; --ink: #e4e9ef; --muted: #93a0ae; --line: #2e3842;
+  --accent: #6fa3e8; --pain: #e57a6e; --auto: #4fc08f; --acc: #d9a650; --none: #a3acb6; --bad: #c193d3; --hi: #4a4120; --danger: #ef7f74;
+  color-scheme: dark; }
+* { box-sizing: border-box; }
+html, body { background: var(--bg); }
+body { color: var(--ink); font: 15px/1.5 var(--sans); padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 0 120px; }
+.wrap { max-width: 920px; margin: 0 auto; display: grid; gap: 14px; }
+header { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 20px; padding-block: 14px; border-bottom: 1px solid var(--line); }
+header h1 { margin: 0; font-size: 17px; font-weight: 700; }
+header h1 span { color: var(--muted); font-weight: 500; }
+.stats { margin-left: auto; display: flex; flex-wrap: wrap; gap: 6px 18px; font: 500 13px var(--mono); color: var(--muted); font-variant-numeric: tabular-nums; align-items: center; }
+.stats b { color: var(--ink); font-weight: 500; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 18px 20px; }
+.msg { max-width: 64ch; }
+.msg h2 { margin: 0 0 8px; font-size: 20px; text-wrap: balance; }
+.msg p { margin: 0 0 10px; color: var(--muted); }
+.art h2 { margin: 0 0 4px; font: 600 20px/1.3 var(--serif); text-wrap: balance; }
+.meta { font: 12.5px var(--mono); color: var(--muted); display: flex; flex-wrap: wrap; gap: 4px 14px; }
+.meta a { color: var(--accent); }
+.acts { display: grid; gap: 12px; }
+.act { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; display: grid; gap: 10px; cursor: default; min-width: 0; }
+.act.on { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.act.ok .num { color: var(--auto); }
+.act .top { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+.num { font: 500 12px var(--mono); color: var(--muted); }
+.spk { font-weight: 600; }
+.speech { font: 16.5px/1.6 var(--serif); margin: 0; overflow-wrap: anywhere; }
+.keys { display: flex; flex-wrap: wrap; gap: 8px; }
+.keys button { font: 600 14px var(--sans); color: var(--ink); background: var(--surface); border: 2px solid var(--line); border-radius: 8px; padding: 7px 12px; cursor: pointer; display: inline-flex; gap: 8px; align-items: center; }
+.keys button kbd { font: 400 11px var(--mono); color: var(--muted); }
+.keys button:hover { border-color: var(--muted); }
+.keys .sep { width: 1px; background: var(--line); margin-inline: 2px; }
+.keys button[aria-pressed="true"] { border-color: var(--c); background: color-mix(in srgb, var(--c) 14%, var(--surface)); }
+.fq { display: grid; gap: 8px; border-left: 3px solid var(--c); padding: 4px 0 4px 12px; }
+.fq .q { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; font-size: 14px; }
+.fq .q > span { color: var(--muted); min-width: 0; }
+.fq .q.miss > span { color: var(--danger); }
+.chip { font: 500 13px var(--sans); color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 999px; padding: 4px 11px; cursor: pointer; }
+.chip[aria-pressed="true"] { background: var(--c); border-color: var(--c); color: var(--surface); }
+.savebar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 5; background: var(--surface); border-top: 1px solid var(--line);
+  padding: 10px max(16px, env(safe-area-inset-right, 0px)) calc(10px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); }
+.savebar .in { max-width: 920px; margin: 0 auto; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+button.btn { font: 500 14px var(--sans); color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 7px; padding: 7px 12px; cursor: pointer; }
+button.btn.primary { background: var(--accent); color: var(--surface); border-color: var(--accent); font-weight: 600; }
+button:disabled { opacity: .45; cursor: default; }
+button:focus-visible, input:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+input[type=text] { font: 14px var(--sans); color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 7px; padding: 7px 10px; min-width: 0; }
+#note { flex: 1; min-width: 160px; }
+.status { font: 13px var(--mono); color: var(--muted); }
+.status.err { color: var(--danger); }
+.where { font: 12px var(--mono); color: var(--muted); }
+details.guide summary { cursor: pointer; font-weight: 600; }
+.guide dl { display: grid; grid-template-columns: max-content 1fr; gap: 10px 18px; margin: 14px 0 0; max-width: 84ch; }
+.guide dt { font-weight: 600; }
+.guide dd { margin: 0; color: var(--muted); }
+.guide dd ul { margin: 4px 0 0; padding-left: 18px; }
+.sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 8px; background: var(--c); }
+@media (max-width: 640px) {
+  .guide dl { grid-template-columns: 1fr; gap: 2px; } .guide dd { margin-bottom: 10px; }
+  .keys button kbd { display: none; }
+  .stats { margin-left: 0; }
+}
+@media (pointer: coarse) { .keys button kbd, .keyhelp { display: none; } }
+.meta a { font-weight: 600; }
+.mode { color: var(--auto); } .mode.warn { color: var(--acc); }
+button.btn.small { font-size: 12.5px; padding: 4px 9px; }
+.formrow { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Aid speech coding <span>· speech acts in African media</span></h1>
+    <div class="stats" id="stats" hidden>
+      <span>you <b id="s-me">0</b></span>
+      <span id="s-teamwrap">team <b id="s-team">0</b>/<b id="s-total">0</b> articles</span>
+      <span id="s-code"></span>
+      <span class="mode" id="s-mode"></span>
+      <button class="btn small" id="dl" type="button">Download my codes</button>
+      <button class="btn small" id="switch" type="button">Switch coder</button>
+    </div>
+  </header>
 
-<h2>What you will do</h2>
-<ol class="steps">
-<li><b>Read the <a href="codebook.html">codebook</a></b> in full before your first batch. Keep it open in another tab while you code.</li>
-<li><b>Get your batch file</b> (e.g. <code>EN-B03.json</code> or <code>FR-B07.json</code>) from the project lead. Each batch has about 25 articles. Do not share batch files: they contain full article text.</li>
-<li><b>Open the <a href="code.html">coding tool</a></b>, type your initials, and drag the batch file in. Your work saves automatically in this browser.</li>
-<li><b>For each article</b>, find every speech act (a statement attributed to an identifiable speaker). Select the quote in the text and click <i>+ Speech act from selection</i>, then fill in the speaker and the theme.</li>
-<li><b>Mark the article done</b> and move to the next one. If there are no speech acts, tick <i>No speech acts</i>; if the text is broken, flag it.</li>
-<li><b>Export</b> when you finish a session: <i>Export CSV</i> for submission and <i>Backup</i> to keep a copy. Upload both to the shared project folder.</li>
-</ol>
+  <section class="panel msg" id="gate"><h2>Loading…</h2><p>Loading the speech acts.</p></section>
 
-<h2>What counts as a speech act</h2>
-<div class="card">One statement, direct or reported, attributed to an identifiable speaker: a named person (<i>“Minister Pate said…”</i>) or a named organisation (<i>“UNICEF warned that…”</i>). The journalist's own narration is <b>not</b> a speech act. If one speaker makes several distinct points, record each as a separate act when they would get different themes.</div>
+  <section class="panel msg" id="onboard" hidden>
+    <h2>Before you start</h2>
+    <p>Enter the coder code your supervisor gave you (your initials are fine). It goes on every code you save, so use the same one every session.</p>
+    <p>Then read the coding guide below. You can reopen it at any time.</p>
+    <form id="code-form" class="formrow">
+      <label for="code-input" class="where">Coder code</label>
+      <input type="text" id="code-input" maxlength="12" autocomplete="off" placeholder="e.g. jlee" required>
+      <button class="btn primary" type="submit">Start coding</button>
+    </form>
+    <p class="status err" id="code-err" hidden></p>
+  </section>
 
-<h2>Important</h2>
-<ul>
-<li>Work is stored only in your browser on this computer. Clearing browser data deletes it, so <b>export a backup at the end of every session</b>. To continue on another computer, load the backup file instead of the batch file.</li>
-<li>Use the same browser and the same initials every time.</li>
-<li>Nothing you code is sent anywhere until you upload the exported files yourself.</li>
-<li>Questions or unclear cases: write them in the notes field and set confidence to <i>1 – hard call</i>; raise recurring problems at the weekly meeting.</li>
-</ul>
-<p class="hint" id="ver"></p>
-</main><script src="assets/codebook.js"></script><script>document.getElementById('ver').textContent='Codebook version: '+CODEBOOK.VERSION</script></body></html>
+  <section id="work" class="wrap" hidden>
+    <div class="panel art" id="art"></div>
+    <div class="acts" id="acts"></div>
+    <div class="where" id="where"></div>
+  </section>
+
+  <section class="panel msg" id="done" hidden>
+    <h2>Nothing left for you right now</h2>
+    <p id="done-text">Every article you can code is either done or being coded by someone else. If a teammate stops partway, their articles come back after a while, so check again later.</p>
+    <p>You can still go back over your own codes.</p>
+    <button class="btn" id="done-back" type="button">← Review my codes</button>
+  </section>
+
+  <details class="panel guide" id="guide">
+    <summary>Coding guide</summary>
+    <dl id="guide-dl"></dl>
+  </details>
+</div>
+
+<div class="savebar" id="savebar" hidden><div class="in">
+  <button class="btn" id="prev" type="button">← Back</button>
+  <button class="btn" id="fwd" type="button">Forward →</button>
+  <input type="text" id="note" maxlength="400" placeholder="Note on this article (optional)">
+  <span class="status" id="status"></span>
+  <button class="btn primary" id="save" type="button">Save &amp; next article</button>
+</div></div>
+
+<script src="assets/config.js"></script>
+<script src="assets/codebook.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+const ALL = [...CATS, ...EXCL], byCat = Object.fromEntries(ALL.map(c => [c.id, c]));
+const STALE_MS = (CONFIG.STALE_MINUTES || 30) * 60 * 1000;
+let api, coder = "", items = [], byId = {};
+let claims = new Map(), mine = new Map(), history = [], pos = -1;
+let current = null, draft = null, active = 0, writing = false;
+
+const store = {
+  get(k) { try { return JSON.parse(localStorage.getItem("aidspeech:" + k)); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem("aidspeech:" + k, JSON.stringify(v)); return true; } catch { return false; } },
+  del(k) { try { localStorage.removeItem("aidspeech:" + k); } catch {} },
+};
+
+// ---------- storage back ends ----------
+// Local: everything stays in this browser; the RA downloads a CSV and sends it in.
+const LocalAPI = {
+  central: false,
+  async state() { return []; },
+  async mine(c) { return Object.values(store.get("codes:" + c) || {}); },
+  async claim() {},
+  async save(c, item, body) { const all = store.get("codes:" + c) || {}; all[item] = body; if (!store.set("codes:" + c, all)) throw new Error("Browser storage is full or blocked."); },
+};
+// Sheets: a Google Apps Script web app (backend/Code.gs) writes to the project's Google Sheet.
+function SheetsAPI(url, key) {
+  const get = async params => {
+    const r = await fetch(url + "?" + new URLSearchParams({ ...params, k: key }));
+    const j = await r.json(); if (!j.ok) throw new Error(j.error || "Server error"); return j;
+  };
+  const post = async payload => { // text/plain avoids a CORS preflight, which Apps Script can't answer
+    const r = await fetch(url, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ ...payload, k: key }) });
+    const j = await r.json(); if (!j.ok) throw new Error(j.error || "Server error"); return j;
+  };
+  return {
+    central: true,
+    async state() { return (await get({ action: "state" })).claims; },
+    async mine(c) { return (await get({ action: "mine", coder: c })).codes; },
+    async claim(c, item) { await post({ action: "claim", coder: c, item }); },
+    async save(c, item, body) { await post({ action: "save", coder: c, item, body, rows: rowsFor(c, body), cols: COLS }); },
+  };
+}
+
+function show(id) { for (const s of ["gate", "onboard", "work", "done"]) $(s).hidden = s !== id; $("savebar").hidden = id !== "work"; }
+function gate(t, p) { $("gate").replaceChildren(el("h2", { textContent: t }), el("p", { textContent: p })); show("gate"); }
+function status(t, err) { $("status").textContent = t; $("status").classList.toggle("err", !!err); }
+function el(tag, props = {}, ...kids) { const e = Object.assign(document.createElement(tag), props); e.append(...kids.filter(k => k != null)); return e; }
+function hash(s) { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
+
+// ---------- queue: same rules as the PV coding page ----------
+async function refreshState() {
+  try {
+    const rows = await api.state(); claims = new Map();
+    for (const c of rows) { if (!claims.has(c.item)) claims.set(c.item, new Map()); claims.get(c.item).set(c.coder, { at: c.at, done: !!c.done }); }
+    return true;
+  } catch (e) { status("Couldn't reach the project sheet: " + e.message, true); return false; }
+}
+function activeCoders(item) {
+  const m = claims.get(item); if (!m) return 0;
+  let n = 0; const now = Date.now();
+  for (const [c, x] of m) if (c !== coder && (x.done || now - x.at < STALE_MS)) n++;
+  return n;
+}
+function pickNext() {
+  const own = [...claims].filter(([it, m]) => m.has(coder) && !m.get(coder).done && !mine.has(it) && byId[it]);
+  if (own.length) return own[0][0];
+  const local = items.find(it => store.get(`draft:${coder}:${it.id}`) && !mine.has(it.id));
+  if (local) return local.id;
+  const order = (a, b) => hash(coder + a.id) - hash(coder + b.id);
+  const open = items.filter(it => !mine.has(it.id) && activeCoders(it.id) < (api.central ? it.n : 1));
+  open.sort((a, b) => ((b.n === 2 && activeCoders(b.id) === 1) - (a.n === 2 && activeCoders(a.id) === 1)) || order(a, b));
+  return open.length ? open[0].id : null;
+}
+function teamDone() {
+  let d = 0;
+  for (const it of items) { const m = claims.get(it.id); let k = 0; if (m) for (const c of m.values()) if (c.done) k++; if (k >= it.n) d++; }
+  return d;
+}
+function renderStats() {
+  $("s-me").textContent = mine.size;
+  $("s-teamwrap").hidden = !api.central;
+  $("s-team").textContent = teamDone(); $("s-total").textContent = items.length;
+  $("s-code").textContent = "coder " + coder;
+  $("s-mode").textContent = api.central ? "● saving to project sheet" : "● saving in this browser only";
+  $("s-mode").classList.toggle("warn", !api.central);
+  $("stats").hidden = false;
+}
+
+// ---------- validation ----------
+function visibleQs(cat, a) { return cat.q.filter(q => !q.showIf || a.f[cat.id + "." + q.showIf[0]] === q.showIf[1]); }
+function missing(a) {
+  if (!a.cats.length) return ["a category"];
+  const out = [];
+  for (const c of a.cats) { const cat = byCat[c]; if (!cat.q) continue;
+    for (const q of visibleQs(cat, a)) { const v = a.f[c + "." + q.id]; if (v == null || (Array.isArray(v) && !v.length)) out.push(cat.label + ": " + q.label.replace(/\?.*$/, "?")); } }
+  return out;
+}
+function cleanFollowups(a) {
+  const keep = {};
+  for (const c of a.cats) { const cat = byCat[c]; if (cat.q) for (const q of visibleQs(cat, a)) { const k = c + "." + q.id; if (k in a.f) keep[k] = a.f[k]; } }
+  a.f = keep;
+}
+
+// ---------- render ----------
+function renderItem(id) {
+  current = id; const it = byId[id], saved = mine.get(id);
+  const local = store.get(`draft:${coder}:${id}`);
+  draft = saved ? { acts: saved.acts.map(a => ({ k: a.k, cats: [...a.cats], f: { ...a.f } })), note: saved.note || "" }
+    : local || { acts: it.acts.map(a => ({ k: a.k, cats: [], f: {} })), note: "" };
+  active = saved ? 0 : Math.max(0, draft.acts.findIndex(a => missing(a).length));
+  renderArticle(it); renderActs();
+  $("note").value = draft.note;
+  $("prev").disabled = pos <= 0; $("fwd").disabled = pos >= history.length;
+  $("where").textContent = pos < history.length ? `Reviewing your article ${pos + 1} of ${history.length}` : `New article · ${it.acts.length} speech act${it.acts.length > 1 ? "s" : ""}`;
+  status(""); show("work"); window.scrollTo(0, 0);
+}
+function renderArticle(it) {
+  $("art").replaceChildren(
+    el("h2", { textContent: it.title || "(untitled)" }),
+    el("div", { className: "meta" }, el("span", { textContent: it.country }), el("span", { textContent: it.source }), el("span", { textContent: it.date }),
+      el("span", { textContent: "lang " + it.lang }), el("a", { href: it.url, target: "_blank", rel: "noopener", textContent: "Open the original article for context ↗" })));
+}
+function keyBtn(cat, a, i) {
+  const b = el("button", { type: "button" }, el("span", { textContent: cat.label }), el("kbd", { textContent: cat.key }));
+  b.style.setProperty("--c", `var(${cat.color})`);
+  b.setAttribute("aria-pressed", String(a.cats.includes(cat.id)));
+  b.onclick = e => { e.stopPropagation(); toggle(i, cat.id); };
+  return b;
+}
+function renderActs() {
+  const it = byId[current];
+  $("acts").replaceChildren(...draft.acts.map((a, i) => {
+    const src = it.acts[i], ok = !missing(a).length;
+    const keys = el("div", { className: "keys" }, ...CATS.map(c => keyBtn(c, a, i)), el("span", { className: "sep" }), ...EXCL.map(c => keyBtn(c, a, i)));
+    const fqs = a.cats.filter(c => byCat[c].q?.length).map(c => {
+      const cat = byCat[c], box = el("div", { className: "fq" }); box.style.setProperty("--c", `var(${cat.color})`);
+      for (const q of visibleQs(cat, a)) {
+        const k = c + "." + q.id, v = a.f[k];
+        const row = el("div", { className: "q" + (v == null || (Array.isArray(v) && !v.length) ? " miss" : "") }, el("span", { textContent: cat.label + " · " + q.label }));
+        for (const [ov, ol] of q.opts) {
+          const on = q.many ? (v || []).includes(ov) : v === ov;
+          const ch = el("button", { type: "button", className: "chip", textContent: ol }); ch.setAttribute("aria-pressed", String(on));
+          ch.onclick = e => { e.stopPropagation(); answer(i, k, ov, q.many); };
+          row.append(ch);
+        }
+        box.append(row);
+      }
+      return box;
+    });
+    const card = el("article", { className: "act" + (i === active ? " on" : "") + (ok ? " ok" : "") },
+      el("div", { className: "top" }, el("span", { className: "num", textContent: `${ok ? "✓ " : ""}${i + 1}/${draft.acts.length}` }), el("span", { className: "spk", textContent: src.speaker })),
+      el("p", { className: "speech", textContent: src.speech }), keys, ...fqs);
+    card.onclick = () => { if (active !== i) { active = i; renderActs(); } };
+    return card;
+  }));
+  const n = draft.acts.filter(a => !missing(a).length).length;
+  $("save").textContent = n === draft.acts.length ? (pos < history.length ? "Save changes" : "Save & next article") : `${n}/${draft.acts.length} coded`;
+}
+function persistDraft() { if (!mine.has(current)) store.set(`draft:${coder}:${current}`, draft); }
+function toggle(i, id) {
+  const a = draft.acts[i]; active = i;
+  const isExcl = EXCL.some(e => e.id === id);
+  if (a.cats.includes(id)) a.cats = a.cats.filter(c => c !== id);
+  else a.cats = isExcl ? [id] : [...a.cats.filter(c => !EXCL.some(e => e.id === c)), id];
+  cleanFollowups(a); persistDraft();
+  if (isExcl && a.cats.length && i < draft.acts.length - 1) active = i + 1;
+  renderActs(); scrollActive();
+}
+function answer(i, k, v, many) {
+  const a = draft.acts[i]; active = i;
+  if (many) { const s = new Set(a.f[k] || []); s.has(v) ? s.delete(v) : s.add(v); a.f[k] = [...s]; }
+  else a.f[k] = a.f[k] === v ? undefined : v;
+  if (a.f[k] === undefined) delete a.f[k];
+  cleanFollowups(a); persistDraft(); renderActs();
+}
+function scrollActive() { const c = $("acts").children[active]; if (c) { const r = c.getBoundingClientRect(); if (r.top < 60 || r.bottom > innerHeight - 90) c.scrollIntoView({ block: "center", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" }); } }
+
+// ---------- save / navigate ----------
+async function openNext() {
+  pos = history.length;
+  if (api.central) await refreshState();
+  const id = pickNext();
+  if (!id) { current = null; show("done"); renderStats(); return; }
+  renderItem(id); renderStats();
+  if (!claims.get(id)?.has(coder)) {
+    claims.set(id, (claims.get(id) || new Map()).set(coder, { at: Date.now(), done: false }));
+    api.claim(coder, id).catch(() => status("Couldn't reserve this article. Your codes will still save.", true));
+  }
+}
+async function save() {
+  if (!current || writing) return;
+  const bad = draft.acts.map((a, i) => [i, missing(a)]).filter(([, m]) => m.length);
+  if (bad.length) { active = bad[0][0]; renderActs(); scrollActive(); return status(`Act ${bad[0][0] + 1} needs ${bad[0][1][0]}`, true); }
+  writing = true; status("Saving…"); $("save").disabled = true;
+  const id = current, it = byId[id];
+  const body = { item: id, article_id: it.article_id, coder, cbv: CB_VERSION, at: Date.now(), note: $("note").value.trim().slice(0, 400),
+    acts: draft.acts.map(a => ({ k: a.k, cats: a.cats, f: a.f })) };
+  try {
+    await api.save(coder, id, body);
+    const reviewing = pos < history.length;
+    mine.set(id, body); store.del(`draft:${coder}:${id}`);
+    if (!reviewing) history.push(id);
+    claims.set(id, (claims.get(id) || new Map()).set(coder, { at: body.at, done: true }));
+    writing = false; $("save").disabled = false; renderStats();
+    if (reviewing) go(1); else openNext();
+  } catch (e) {
+    writing = false; $("save").disabled = false;
+    status("Save failed: " + (e.message || "check your connection") + ". Your work is kept on this computer; try again.", true);
+  }
+}
+function go(d) { const p = pos + d; if (p < 0 || p > history.length) return; pos = p; if (pos === history.length) openNext(); else renderItem(history[pos]); }
+
+// ---------- CSV (one row per speech act) ----------
+const COLS = ["coder", "article_id", "pool", "country", "source", "date", "url", "title", "act_n", "speaker", "speech", "categories",
+  ...ALL.flatMap(c => [c.id, ...(c.q || []).map(q => c.id + "." + q.id)]), "article_note", "codebook_version", "saved_at"];
+function rowsFor(c, L) {
+  const it = byId[L.item];
+  return L.acts.map((a, i) => {
+    const src = it.acts[i] || {};
+    const r = { coder: c, article_id: it.article_id, pool: it.pool, country: it.country, source: it.source, date: it.date, url: it.url, title: it.title,
+      act_n: a.k, speaker: src.speaker, speech: src.speech, categories: a.cats.join("|"), article_note: L.note, codebook_version: L.cbv, saved_at: new Date(L.at).toISOString() };
+    for (const cat of ALL) { r[cat.id] = a.cats.includes(cat.id) ? 1 : 0; for (const q of cat.q || []) { const v = a.f[cat.id + "." + q.id]; r[cat.id + "." + q.id] = Array.isArray(v) ? v.join("|") : (v ?? ""); } }
+    return COLS.map(k => r[k] ?? "");
+  });
+}
+function downloadMine() {
+  const esc = v => { v = String(v ?? ""); return /[",\n\r]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v; };
+  const lines = [COLS.join(",")];
+  for (const L of [...mine.values()].sort((a, b) => a.at - b.at)) for (const r of rowsFor(coder, L)) lines.push(r.map(esc).join(","));
+  const a = el("a", { href: URL.createObjectURL(new Blob(["﻿" + lines.join("\r\n")], { type: "text/csv;charset=utf-8" })), download: `aid_speech_codes_${coder}_${new Date().toISOString().slice(0, 10)}.csv` });
+  document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+
+// ---------- guide ----------
+function renderGuide() {
+  const dl = $("guide-dl");
+  dl.append(el("dt", { textContent: "Your task" }), el("dd", { textContent: "Each screen shows one news article and the speech acts extracted from it (translated into English where needed). For every speech act, pick every category that applies, then answer the follow-up questions that appear under it. Code what the speaker says, not the journalist's framing. Open the original article when you need context." }));
+  for (const c of ALL) {
+    const sw = el("span", { className: "sw" }); sw.style.setProperty("--c", `var(${c.color})`);
+    const dd = el("dd", { textContent: c.desc });
+    if (c.q?.length) dd.append(el("ul", {}, ...c.q.map(q => el("li", { textContent: q.label + (q.showIf ? ` (asked only if the answer above is “${q.showIf[1]}”)` : "") + ": " + q.opts.map(o => o[1]).join(" / ") }))));
+    dl.append(el("dt", {}, sw, document.createTextNode(c.label + " "), el("kbd", { className: "keyhelp", textContent: c.key })), dd);
+  }
+  dl.append(el("dt", { className: "keyhelp", textContent: "Keys" }), el("dd", { className: "keyhelp", textContent: "1–3 toggle a category on the highlighted speech act; 0 = None of these; X = Not a speech act. J / ↓ next act, K / ↑ previous act. Enter saves the article once every act is coded. ← → move back and forward through your saved articles." }),
+    el("dt", { textContent: "Rules" }), el("dd", { textContent: "Categories can combine (an act can be both Pain and Autonomy). Use the note for hard calls. Don't discuss specific articles with other coders: some are coded by two people on purpose. Use the same coder code every session." }));
+}
+
+// ---------- start ----------
+async function begin() {
+  show("gate"); gate("Loading your codes…", "Fetching what you have already coded.");
+  try { mine = new Map((await api.mine(coder)).filter(x => x?.item && byId[x.item]).map(x => [x.item, x])); }
+  catch (e) { return gate("Couldn't reach the project sheet", e.message + ". Check your connection and reload. If it keeps happening, tell your supervisor."); }
+  history = [...mine.values()].sort((a, b) => a.at - b.at).map(x => x.item);
+  $("done-text").hidden = !api.central;
+  openNext();
+  if (api.central) setInterval(async () => { if (!writing && document.visibilityState === "visible" && await refreshState()) renderStats(); }, 90000);
+}
+async function start() {
+  renderGuide();
+  $("prev").onclick = () => go(-1); $("fwd").onclick = () => go(1); $("save").onclick = save;
+  $("done-back").onclick = () => { if (history.length) { pos = history.length - 1; renderItem(history[pos]); } };
+  $("note").addEventListener("input", () => { if (draft) { draft.note = $("note").value; persistDraft(); } });
+  $("dl").onclick = downloadMine;
+  $("switch").onclick = () => { store.del("coder"); location.reload(); };
+  document.addEventListener("keydown", e => {
+    if (e.target.tagName === "INPUT" || $("work").hidden || e.metaKey || e.ctrlKey || e.altKey) return;
+    const k = e.key.toLowerCase(), c = ALL.find(x => x.key === k);
+    if (c) { e.preventDefault(); toggle(active, c.id); }
+    else if (k === "j" || k === "arrowdown") { e.preventDefault(); active = Math.min(active + 1, draft.acts.length - 1); renderActs(); scrollActive(); }
+    else if (k === "k" || k === "arrowup") { e.preventDefault(); active = Math.max(active - 1, 0); renderActs(); scrollActive(); }
+    else if (k === "enter") { e.preventDefault(); save(); }
+    else if (k === "arrowleft") go(-1);
+    else if (k === "arrowright") go(1);
+  });
+
+  // project key comes in the RA's link (#k=...) and is remembered on this computer
+  const hk = new URLSearchParams(location.hash.slice(1)).get("k");
+  if (hk) { store.set("key", hk); history_replace(); }
+  const key = store.get("key");
+  if (CONFIG.BACKEND_URL) {
+    if (!key) return gate("Use the link your supervisor sent", "This page needs the project key that is part of that link (it ends in #k=…). Open the full link once on this computer.");
+    api = SheetsAPI(CONFIG.BACKEND_URL, key);
+  } else api = LocalAPI;
+
+  try { items = await (await fetch("data/articles.json")).json(); } catch { return gate("Couldn't load the speech acts", "Reload the page. If this keeps happening, tell your supervisor."); }
+  byId = Object.fromEntries(items.map(it => [it.id, it]));
+
+  coder = store.get("coder") || "";
+  if (!coder) { show("onboard"); $("guide").open = true; $("code-input").focus(); }
+  else begin();
+  $("code-form").addEventListener("submit", e => {
+    e.preventDefault();
+    const v = $("code-input").value.trim().toLowerCase();
+    if (!/^[a-z0-9_-]{2,12}$/.test(v)) { $("code-err").textContent = "Use 2 to 12 letters or numbers, no spaces."; $("code-err").hidden = false; return; }
+    coder = v; store.set("coder", v); $("guide").open = false; begin();
+  });
+}
+function history_replace() { try { window.history.replaceState(null, "", location.pathname + location.search); } catch {} }
+start();
+</script>
+</body>
+</html>

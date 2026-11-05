@@ -1,24 +1,50 @@
-# Aid Withdrawal Speech: RA coding site
+# Aid Withdrawal Speech: RA coding app
 
-Static GitHub Pages site for research assistants coding speech acts in African
-news articles (Oct 2024 – Oct 2025) by theme.
+Live: https://cobrienudry.github.io/aid-withdrawal-speech/
 
-- `index.html` – RA instructions
-- `codebook.html` – codebook, rendered from `assets/codebook.js`
-- `code.html` – the coding tool (vanilla JS, no build step)
-- `assets/codebook.js` – **single source of truth** for speaker types, themes and sub-codes. Bump `VERSION` when you change it.
+RAs see one news article at a time with the speech acts extracted from it, and assign
+categories to each speech act (keys 1–3, 0 = none, X = not a speech act), answering the
+follow-up questions that appear under a category. Same workflow as the Cape Town PV
+labelling page: a coder code, a shared queue, and ~15% of articles double-coded for agreement.
 
-## Data is not in this repo
+| File | What it is |
+|---|---|
+| `index.html` | the app (vanilla JS, no build step) |
+| `assets/codebook.js` | **categories and follow-up questions**: edit here, bump `CB_VERSION` |
+| `assets/config.js` | where codes are saved (`BACKEND_URL`) |
+| `data/articles.json` | 559 articles, 2,706 speech acts; built by `build_speech_coding.py --public` in the parent project |
+| `backend/Code.gs` | Google Apps Script that saves codes to a Google Sheet |
 
-Article text is scraped news content, so it is **not** published here. Batch
-files (`EN-B01.json` … `FR-B20.json`, ~25 articles each) are built locally by
-`build_ra_batches.py` (in the parent project) and handed to RAs privately. The tool
-reads them in the browser; nothing is uploaded.
+Full article text is **not** in this public repo; RAs open the original article by link.
+Speech acts are shown in English (translated where the article is not).
 
-## RA output
+## Where codes are saved
 
-Each RA exports `<batch>_<initials>_<timestamp>.csv`: one row per speech act
-(articles with no acts get one row with `act_n = 0`), plus a JSON backup that
-can be reloaded to resume. Columns include `codebook_version`, `article_id`
-(e.g. `EN-0042` = row 43 of the source xlsx), speaker fields, `quote`,
-`primary_theme`/`primary_sub`, `secondary_theme`/`secondary_sub`, `confidence`.
+**Without a backend** (`BACKEND_URL: ""`, the current setting) each RA's codes stay in their
+browser. They press **Download my codes** and send you the CSV. There is no shared queue, so
+give each RA a different computer/browser and expect overlap; double-coding is not coordinated.
+
+**With the Google Sheet backend** (recommended) codes save centrally, the queue is shared,
+and double-coding works. Setup, once:
+
+1. Create a new Google Sheet (e.g. "Aid speech codes"). Open **Extensions → Apps Script**.
+2. Replace the editor contents with `backend/Code.gs` and save.
+3. **Project Settings → Script properties → Add**: `KEY` = a random string (e.g. `k7m2q9xv4p`).
+4. **Deploy → New deployment → Web app**. Execute as: **Me**. Who has access: **Anyone**.
+   Authorize it, then copy the web app URL (ends in `/exec`).
+5. Paste that URL into `BACKEND_URL` in `assets/config.js`, commit and push.
+6. Send RAs the link with the key: `https://cobrienudry.github.io/aid-withdrawal-speech/#k=k7m2q9xv4p`.
+   They open it once per computer; the key is remembered and removed from the address bar.
+
+The sheet gets three tabs: `claims` (who is coding what), `saves` (latest save per coder ×
+article, which the app reloads from) and `acts <codebook version>`, one readable row per coder ×
+speech act, which is the analysis file. A new `acts` tab starts when `CB_VERSION` changes.
+If you change `Code.gs`, use **Deploy → Manage deployments → Edit → New version** so the URL stays the same.
+
+## Output columns
+
+`coder, article_id, pool, country, source, date, url, title, act_n, speaker, speech, categories,`
+then one 0/1 column per category and one column per follow-up question (e.g. `pain.aid_specific`,
+`pain.blame`, `accommodation.type` with multiple answers joined by `|`), then
+`article_note, codebook_version, saved_at`. `article_id` and `act_n` match `article_id` and
+`speaker_n` in `speech_Nov26.csv` / `speech_Nov26_french.csv`.
