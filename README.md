@@ -19,7 +19,7 @@ labelling page: a coder code, a shared queue, and ~15% of articles double-coded 
 | `index.html` | the app (vanilla JS, no build step) |
 | `assets/codebook.js` | **categories and follow-up questions**: edit here, bump `CB_VERSION` |
 | `assets/config.js` | where codes are saved (`BACKEND_URL`) |
-| `data/articles.json` | 559 articles, 2,706 speech acts; built by `build_speech_coding.py --public` in the parent project |
+| `data/index.json`, `data/acts/*.json` | full coded corpus: 7,097 articles, 36,225 speech acts (index + 100 shards loaded on demand); built by `build_speech_coding.py` in the parent project from `media2_coded_corpus_260920_full.xlsx`. The 559 Nov26-sample articles (`pool = nov26`) are served first |
 | `backend/Code.gs` | Google Apps Script that saves codes to a Google Sheet |
 
 Full article text is **not** in this public repo; RAs open the original article by link.
@@ -50,7 +50,7 @@ If you change `Code.gs`, use **Deploy → Manage deployments → Edit → New ve
 
 ## Output columns
 
-`coder, task, article_id, pool, country, source, date, url, title, act_n, speaker, speech, categories,`
+`coder, task, article_id, pool, stratum, country, source, date, url, title, act_n, speaker, speech, categories,`
 then one 0/1 column per category (blank when the task did not judge that category: in a single-category task only that category and `bad` are coded) and one column per follow-up question (e.g. `pain.aid_specific`,
 `pain.blame`, `accommodation.type` with multiple answers joined by `|`), then
 `article_note, codebook_version, saved_at`. `article_id` and `act_n` match `article_id` and

@@ -271,7 +271,7 @@ function pickNext() {
   const order = (a, b) => hash(coder + wid(a.id)) - hash(coder + wid(b.id));
   const open = items.filter(it => !mine.has(wid(it.id)) && activeCoders(wid(it.id)) < (api.central ? it.n : 1));
   const half = it => it.n === 2 && activeCoders(wid(it.id)) === 1;
-  open.sort((a, b) => (half(b) - half(a)) || order(a, b));
+  open.sort((a, b) => (a.p - b.p) || (half(b) - half(a)) || order(a, b));
   return open.length ? wid(open[0].id) : null;
 }
 function teamDone() {
@@ -306,8 +306,19 @@ function cleanFollowups(a) {
 }
 
 // ---------- render ----------
-function renderItem(w) {
-  current = w; const it = itemOf(w), saved = mine.get(w);
+// Speech acts live in data/acts/<shard>.json; load a shard the first time one of its articles is needed.
+const shardLoads = {};
+function ensureActs(it) {
+  if (it.acts) return Promise.resolve();
+  shardLoads[it.s] ||= fetch(`data/acts/${it.s}.json`).then(r => { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
+    .then(m => { for (const [id, acts] of Object.entries(m)) if (byId[id]) byId[id].acts = acts; })
+    .catch(e => { delete shardLoads[it.s]; throw e; });
+  return shardLoads[it.s];
+}
+async function renderItem(w) {
+  const it0 = itemOf(w);
+  try { await ensureActs(it0); } catch { return gate("Couldn't load the speech acts", "Check your connection and reload the page."); }
+  current = w; const it = it0, saved = mine.get(w);
   const local = store.get(`draft:${coder}:${w}`);
   draft = saved ? { acts: saved.acts.map(a => ({ k: a.k, cats: [...a.cats], f: { ...a.f } })), note: saved.note || "" }
     : local || { acts: it.acts.map(a => ({ k: a.k, cats: [], f: {} })), note: "" };
@@ -393,7 +404,7 @@ async function openNext() {
   if (api.central) await refreshState();
   const w = pickNext();
   if (!w) { current = null; show("done"); renderStats(); return; }
-  renderItem(w); renderStats();
+  await renderItem(w); renderStats();
   if (!claims.get(w)?.has(coder)) {
     claims.set(w, (claims.get(w) || new Map()).set(coder, { at: Date.now(), done: false }));
     api.claim(coder, w).catch(() => status("Couldn't reserve this article. Your codes will still save.", true));
@@ -424,13 +435,13 @@ function go(d) { const p = pos + d; if (p < 0 || p > history.length) return; pos
 
 // ---------- CSV (one row per coder x task x speech act) ----------
 // In a single-category task only that category (and "bad") is judged: other category columns stay blank.
-const COLS = ["coder", "task", "article_id", "pool", "country", "source", "date", "url", "title", "act_n", "speaker", "speech", "categories",
+const COLS = ["coder", "task", "article_id", "pool", "stratum", "country", "source", "date", "url", "title", "act_n", "speaker", "speech", "categories",
   ...ALL.flatMap(c => [c.id, ...(c.q || []).map(q => c.id + "." + q.id)]), "article_note", "codebook_version", "saved_at"];
 function rowsFor(c, L) {
   const it = byId[L.article];
   return L.acts.map((a, i) => {
     const src = it.acts[i] || {};
-    const r = { coder: c, task: L.task, article_id: it.article_id, pool: it.pool, country: it.country, source: it.source, date: it.date, url: it.url, title: it.title,
+    const r = { coder: c, task: L.task, article_id: it.article_id, pool: it.pool, stratum: it.stratum, country: it.country, source: it.source, date: it.date, url: it.url, title: it.title,
       act_n: a.k, speaker: src.speaker, speech: src.speech, categories: a.cats.filter(x => x !== "absent").join("|"), article_note: L.note, codebook_version: L.cbv, saved_at: new Date(L.at).toISOString() };
     for (const cat of ALL) {
       const judged = L.task === "all" || cat.id === L.task || cat.id === "bad";
@@ -444,6 +455,7 @@ async function downloadMine() {
   const esc = v => { v = String(v ?? ""); return /[",\n\r]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v; };
   const lines = [COLS.join(",")];
   const all = (await api.mine(coder).catch(() => [...mine.values()])).filter(L => L?.article && byId[L.article]);
+  try { await Promise.all(all.map(L => ensureActs(byId[L.article]))); } catch { return status("Couldn't load the speech acts for the download. Check your connection.", true); }
   for (const L of all.sort((a, b) => a.at - b.at)) for (const r of rowsFor(coder, L)) lines.push(r.map(esc).join(","));
   const a = el("a", { href: URL.createObjectURL(new Blob(["﻿" + lines.join("\r\n")], { type: "text/csv;charset=utf-8" })), download: `aid_speech_codes_${coder}_${new Date().toISOString().slice(0, 10)}.csv` });
   document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
@@ -507,7 +519,7 @@ async function start() {
     api = SheetsAPI(CONFIG.BACKEND_URL, key);
   } else api = LocalAPI;
 
-  try { items = await (await fetch("data/articles.json")).json(); } catch { return gate("Couldn't load the speech acts", "Reload the page. If this keeps happening, tell your supervisor."); }
+  try { items = await (await fetch("data/index.json")).json(); } catch { return gate("Couldn't load the speech acts", "Reload the page. If this keeps happening, tell your supervisor."); }
   byId = Object.fromEntries(items.map(it => [it.id, it]));
 
   const t = store.get("task"); if (t && (t === "all" || CATS.some(c => c.id === t))) setTask(t);
