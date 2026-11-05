@@ -2,9 +2,16 @@
 
 Live: https://cobrienudry.github.io/aid-withdrawal-speech/
 
-RAs see one news article at a time with the speech acts extracted from it, and assign
-categories to each speech act (keys 1–3, 0 = none, X = not a speech act), answering the
-follow-up questions that appear under a category. Same workflow as the Cape Town PV
+RAs see one news article at a time with the speech acts extracted from it. They choose a task:
+
+- **All categories, speech by speech**: mark every category that applies to each speech act
+  (keys 1–3, 0 = none of these, X = not a speech act).
+- **One category** (e.g. *Pain only*): for each speech act, decide whether that category is
+  present (1/Y) or not (0/N), plus X = not a speech act.
+
+Follow-up questions appear under a category whenever it is marked present. Each article × task is
+its own unit of work, with its own queue position, save and double-coding, so RAs can be assigned
+to different tasks and switch between them. Same workflow as the Cape Town PV
 labelling page: a coder code, a shared queue, and ~15% of articles double-coded for agreement.
 
 | File | What it is |
@@ -43,8 +50,8 @@ If you change `Code.gs`, use **Deploy → Manage deployments → Edit → New ve
 
 ## Output columns
 
-`coder, article_id, pool, country, source, date, url, title, act_n, speaker, speech, categories,`
-then one 0/1 column per category and one column per follow-up question (e.g. `pain.aid_specific`,
+`coder, task, article_id, pool, country, source, date, url, title, act_n, speaker, speech, categories,`
+then one 0/1 column per category (blank when the task did not judge that category: in a single-category task only that category and `bad` are coded) and one column per follow-up question (e.g. `pain.aid_specific`,
 `pain.blame`, `accommodation.type` with multiple answers joined by `|`), then
 `article_note, codebook_version, saved_at`. `article_id` and `act_n` match `article_id` and
 `speaker_n` in `speech_Nov26.csv` / `speech_Nov26_french.csv`.

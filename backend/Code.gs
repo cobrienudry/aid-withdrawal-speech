@@ -3,8 +3,8 @@
  * Setup (once, ~5 minutes): see README.md, "Saving codes centrally".
  *
  * Sheets it maintains in the bound spreadsheet:
- *   claims  item | coder | at | done              who is coding what (drives the shared queue)
- *   saves   coder | item | at | json              one row per coder x article, latest save (the app reloads from this)
+ *   claims  item | coder | at | done              who is coding what, per article x task (drives the shared queue)
+ *   saves   coder | item | at | json              one row per coder x article x task (item = <article>-<task>), latest save
  *   acts <codebook version>   one row per coder x speech act, readable columns (the analysis export);
  *                             a new tab starts whenever the codebook version changes
  *
@@ -74,7 +74,8 @@ function save_(coder, item, body, rows, cols) {
   if (rows.length) {
     var acts = sheet_(('acts ' + String(body.cbv || 'v')).slice(0, 90), cols);
     var a = acts.getDataRange().getValues();
-    for (var r = a.length - 1; r >= 1; r--) if (String(a[r][0]) === coder && String(a[r][1]) === String(body.article_id)) acts.deleteRow(r + 1);
+    // columns: coder | task | article_id | ...  (COLS in index.html); replace this coder's rows for this article in this task
+    for (var r = a.length - 1; r >= 1; r--) if (String(a[r][0]) === coder && String(a[r][1]) === String(body.task) && String(a[r][2]) === String(body.article_id)) acts.deleteRow(r + 1);
     acts.getRange(acts.getLastRow() + 1, 1, rows.length, cols.length).setValues(rows.map(function (row) {
       return cols.map(function (_, j) { var x = row[j]; return x === null || x === undefined ? '' : x; });
     }));

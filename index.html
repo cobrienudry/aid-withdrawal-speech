@@ -28,6 +28,7 @@
   --accent: #6fa3e8; --pain: #e57a6e; --auto: #4fc08f; --acc: #d9a650; --none: #a3acb6; --bad: #c193d3; --hi: #4a4120; --danger: #ef7f74;
   color-scheme: dark; }
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 html, body { background: var(--bg); }
 body { color: var(--ink); font: 15px/1.5 var(--sans); padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 0 120px; }
 .wrap { max-width: 920px; margin: 0 auto; display: grid; gap: 14px; }
@@ -91,6 +92,16 @@ details.guide summary { cursor: pointer; font-weight: 600; }
 .mode { color: var(--auto); } .mode.warn { color: var(--acc); }
 button.btn.small { font-size: 12.5px; padding: 4px 9px; }
 .formrow { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.task-pill { font: 600 12px var(--sans); color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px; }
+.tasks { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; margin-top: 14px; }
+.taskcard { --c: var(--accent); text-align: left; display: grid; gap: 4px; font: 14px/1.45 var(--sans); color: var(--muted); background: var(--surface); border: 2px solid var(--line); border-left: 6px solid var(--c); border-radius: 9px; padding: 12px 14px; cursor: pointer; }
+.taskcard b { color: var(--ink); font-size: 15px; }
+.taskcard:hover { border-color: var(--muted); border-left-color: var(--c); }
+.taskcard.on { border-color: var(--c); }
+.focus { border-left: 6px solid var(--c); display: grid; gap: 2px; }
+.focus .eyebrow { font: 600 11px var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.focus h3 { margin: 0; font-size: 18px; }
+.focus p { margin: 0; color: var(--muted); max-width: 70ch; }
 </style>
 </head>
 <body>
@@ -98,10 +109,12 @@ button.btn.small { font-size: 12.5px; padding: 4px 9px; }
   <header>
     <h1>Aid speech coding <span>· speech acts in African media</span></h1>
     <div class="stats" id="stats" hidden>
+      <span class="task-pill" id="s-task"></span>
       <span>you <b id="s-me">0</b></span>
       <span id="s-teamwrap">team <b id="s-team">0</b>/<b id="s-total">0</b> articles</span>
       <span id="s-code"></span>
       <span class="mode" id="s-mode"></span>
+      <button class="btn small" id="change-task" type="button">Change task</button>
       <button class="btn small" id="dl" type="button">Download my codes</button>
       <button class="btn small" id="switch" type="button">Switch coder</button>
     </div>
@@ -116,22 +129,30 @@ button.btn.small { font-size: 12.5px; padding: 4px 9px; }
     <form id="code-form" class="formrow">
       <label for="code-input" class="where">Coder code</label>
       <input type="text" id="code-input" maxlength="12" autocomplete="off" placeholder="e.g. jlee" required>
-      <button class="btn primary" type="submit">Start coding</button>
+      <button class="btn primary" type="submit">Continue</button>
     </form>
     <p class="status err" id="code-err" hidden></p>
   </section>
 
+  <section class="panel" id="taskpick" hidden>
+    <div class="msg">
+      <h2>Choose how to code</h2>
+      <p>Use the task your supervisor assigned. You can switch at any time; each task keeps its own progress.</p>
+    </div>
+    <div class="tasks" id="tasks"></div>
+  </section>
+
   <section id="work" class="wrap" hidden>
+    <div class="panel focus" id="focus" hidden></div>
     <div class="panel art" id="art"></div>
     <div class="acts" id="acts"></div>
     <div class="where" id="where"></div>
   </section>
 
   <section class="panel msg" id="done" hidden>
-    <h2>Nothing left for you right now</h2>
-    <p id="done-text">Every article you can code is either done or being coded by someone else. If a teammate stops partway, their articles come back after a while, so check again later.</p>
-    <p>You can still go back over your own codes.</p>
-    <button class="btn" id="done-back" type="button">← Review my codes</button>
+    <h2>Nothing left in this task right now</h2>
+    <p id="done-text">Every article in this task is either done or being coded by someone else. If a teammate stops partway, their articles come back after a while, so check again later, or choose another task.</p>
+    <div class="formrow"><button class="btn" id="done-back" type="button">← Review my codes</button><button class="btn" id="done-task" type="button">Choose another task</button></div>
   </section>
 
   <details class="panel guide" id="guide">
@@ -152,11 +173,13 @@ button.btn.small { font-size: 12.5px; padding: 4px 9px; }
 <script src="assets/codebook.js"></script>
 <script>
 const $ = id => document.getElementById(id);
-const ALL = [...CATS, ...EXCL], byCat = Object.fromEntries(ALL.map(c => [c.id, c]));
+const ABSENT = { id: "absent", keys: ["0", "n"], label: "Not present", color: "--none", desc: "The category does not appear in this speech act." };
+const ALL = [...CATS, ...EXCL], byCat = Object.fromEntries([...ALL, ABSENT].map(c => [c.id, c]));
 const STALE_MS = (CONFIG.STALE_MINUTES || 30) * 60 * 1000;
-let api, coder = "", items = [], byId = {};
+let api, coder = "", task = "", items = [], byId = {};
 let claims = new Map(), mine = new Map(), history = [], pos = -1;
 let current = null, draft = null, active = 0, writing = false;
+let OPTS = [], EXCL_IDS = [], poller = null;   // the answer buttons for the current task
 
 const store = {
   get(k) { try { return JSON.parse(localStorage.getItem("aidspeech:" + k)); } catch { return null; } },
@@ -164,16 +187,44 @@ const store = {
   del(k) { try { localStorage.removeItem("aidspeech:" + k); } catch {} },
 };
 
+// ---------- tasks ----------
+// "all": every category, speech by speech. A category id: only that category, present or not.
+// Each (article, task) is its own unit of work: its own claim, save and double-coding.
+const wid = (itemId, t = task) => itemId + "-" + t;
+const itemOf = w => byId[w.slice(0, w.lastIndexOf("-"))];
+function taskLabel(t) { return t === "all" ? "All categories" : byCat[t].label + " only"; }
+function setTask(t) {
+  task = t; store.set("task", t);
+  if (t === "all") {
+    OPTS = ALL.map(c => ({ ...c, keys: [c.key] }));
+    EXCL_IDS = EXCL.map(e => e.id);
+  } else {
+    const c = byCat[t];
+    OPTS = [{ ...c, label: "Present: " + c.label, keys: ["1", "y"] }, ABSENT, { ...byCat.bad, keys: ["x"] }];
+    EXCL_IDS = OPTS.map(o => o.id);          // one answer per act in single-category mode
+  }
+}
+function renderTaskPicker() {
+  const card = (t, title, text) => {
+    const b = el("button", { type: "button", className: "taskcard" + (t === task ? " on" : "") }, el("b", { textContent: title }), el("span", { textContent: text }));
+    if (t !== "all") b.style.setProperty("--c", `var(${byCat[t].color})`);
+    b.onclick = () => { setTask(t); begin(); };
+    return b;
+  };
+  $("tasks").replaceChildren(
+    card("all", "All categories, speech by speech", "For each speech act, mark every category that applies. Best for a full first pass."),
+    ...CATS.map(c => card(c.id, c.label + " only", `For each speech act, decide whether ${c.label.toLowerCase()} appears${c.q.length ? ", then answer the follow-up questions" : ""}.`)));
+  show("taskpick");
+}
+
 // ---------- storage back ends ----------
-// Local: everything stays in this browser; the RA downloads a CSV and sends it in.
 const LocalAPI = {
   central: false,
   async state() { return []; },
   async mine(c) { return Object.values(store.get("codes:" + c) || {}); },
   async claim() {},
-  async save(c, item, body) { const all = store.get("codes:" + c) || {}; all[item] = body; if (!store.set("codes:" + c, all)) throw new Error("Browser storage is full or blocked."); },
+  async save(c, w, body) { const all = store.get("codes:" + c) || {}; all[w] = body; if (!store.set("codes:" + c, all)) throw new Error("Browser storage is full or blocked."); },
 };
-// Sheets: a Google Apps Script web app (backend/Code.gs) writes to the project's Google Sheet.
 function SheetsAPI(url, key) {
   const get = async params => {
     const r = await fetch(url + "?" + new URLSearchParams({ ...params, k: key }));
@@ -187,18 +238,18 @@ function SheetsAPI(url, key) {
     central: true,
     async state() { return (await get({ action: "state" })).claims; },
     async mine(c) { return (await get({ action: "mine", coder: c })).codes; },
-    async claim(c, item) { await post({ action: "claim", coder: c, item }); },
-    async save(c, item, body) { await post({ action: "save", coder: c, item, body, rows: rowsFor(c, body), cols: COLS }); },
+    async claim(c, w) { await post({ action: "claim", coder: c, item: w }); },
+    async save(c, w, body) { await post({ action: "save", coder: c, item: w, body, rows: rowsFor(c, body), cols: COLS }); },
   };
 }
 
-function show(id) { for (const s of ["gate", "onboard", "work", "done"]) $(s).hidden = s !== id; $("savebar").hidden = id !== "work"; }
+function show(id) { for (const s of ["gate", "onboard", "taskpick", "work", "done"]) $(s).hidden = s !== id; $("savebar").hidden = id !== "work"; }
 function gate(t, p) { $("gate").replaceChildren(el("h2", { textContent: t }), el("p", { textContent: p })); show("gate"); }
 function status(t, err) { $("status").textContent = t; $("status").classList.toggle("err", !!err); }
 function el(tag, props = {}, ...kids) { const e = Object.assign(document.createElement(tag), props); e.append(...kids.filter(k => k != null)); return e; }
 function hash(s) { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
 
-// ---------- queue: same rules as the PV coding page ----------
+// ---------- queue: same rules as the PV coding page, per task ----------
 async function refreshState() {
   try {
     const rows = await api.state(); claims = new Map();
@@ -206,28 +257,30 @@ async function refreshState() {
     return true;
   } catch (e) { status("Couldn't reach the project sheet: " + e.message, true); return false; }
 }
-function activeCoders(item) {
-  const m = claims.get(item); if (!m) return 0;
+function activeCoders(w) {
+  const m = claims.get(w); if (!m) return 0;
   let n = 0; const now = Date.now();
   for (const [c, x] of m) if (c !== coder && (x.done || now - x.at < STALE_MS)) n++;
   return n;
 }
 function pickNext() {
-  const own = [...claims].filter(([it, m]) => m.has(coder) && !m.get(coder).done && !mine.has(it) && byId[it]);
+  const own = [...claims].filter(([w, m]) => m.has(coder) && !m.get(coder).done && !mine.has(w) && w.endsWith("-" + task) && itemOf(w));
   if (own.length) return own[0][0];
-  const local = items.find(it => store.get(`draft:${coder}:${it.id}`) && !mine.has(it.id));
-  if (local) return local.id;
-  const order = (a, b) => hash(coder + a.id) - hash(coder + b.id);
-  const open = items.filter(it => !mine.has(it.id) && activeCoders(it.id) < (api.central ? it.n : 1));
-  open.sort((a, b) => ((b.n === 2 && activeCoders(b.id) === 1) - (a.n === 2 && activeCoders(a.id) === 1)) || order(a, b));
-  return open.length ? open[0].id : null;
+  const local = items.find(it => store.get(`draft:${coder}:${wid(it.id)}`) && !mine.has(wid(it.id)));
+  if (local) return wid(local.id);
+  const order = (a, b) => hash(coder + wid(a.id)) - hash(coder + wid(b.id));
+  const open = items.filter(it => !mine.has(wid(it.id)) && activeCoders(wid(it.id)) < (api.central ? it.n : 1));
+  const half = it => it.n === 2 && activeCoders(wid(it.id)) === 1;
+  open.sort((a, b) => (half(b) - half(a)) || order(a, b));
+  return open.length ? wid(open[0].id) : null;
 }
 function teamDone() {
   let d = 0;
-  for (const it of items) { const m = claims.get(it.id); let k = 0; if (m) for (const c of m.values()) if (c.done) k++; if (k >= it.n) d++; }
+  for (const it of items) { const m = claims.get(wid(it.id)); let k = 0; if (m) for (const c of m.values()) if (c.done) k++; if (k >= it.n) d++; }
   return d;
 }
 function renderStats() {
+  $("s-task").textContent = taskLabel(task);
   $("s-me").textContent = mine.size;
   $("s-teamwrap").hidden = !api.central;
   $("s-team").textContent = teamDone(); $("s-total").textContent = items.length;
@@ -238,32 +291,38 @@ function renderStats() {
 }
 
 // ---------- validation ----------
-function visibleQs(cat, a) { return cat.q.filter(q => !q.showIf || a.f[cat.id + "." + q.showIf[0]] === q.showIf[1]); }
+function visibleQs(cat, a) { return (cat.q || []).filter(q => !q.showIf || a.f[cat.id + "." + q.showIf[0]] === q.showIf[1]); }
 function missing(a) {
-  if (!a.cats.length) return ["a category"];
+  if (!a.cats.length) return [task === "all" ? "a category" : "an answer"];
   const out = [];
-  for (const c of a.cats) { const cat = byCat[c]; if (!cat.q) continue;
+  for (const c of a.cats) { const cat = byCat[c];
     for (const q of visibleQs(cat, a)) { const v = a.f[c + "." + q.id]; if (v == null || (Array.isArray(v) && !v.length)) out.push(cat.label + ": " + q.label.replace(/\?.*$/, "?")); } }
   return out;
 }
 function cleanFollowups(a) {
   const keep = {};
-  for (const c of a.cats) { const cat = byCat[c]; if (cat.q) for (const q of visibleQs(cat, a)) { const k = c + "." + q.id; if (k in a.f) keep[k] = a.f[k]; } }
+  for (const c of a.cats) for (const q of visibleQs(byCat[c], a)) { const k = c + "." + q.id; if (k in a.f) keep[k] = a.f[k]; }
   a.f = keep;
 }
 
 // ---------- render ----------
-function renderItem(id) {
-  current = id; const it = byId[id], saved = mine.get(id);
-  const local = store.get(`draft:${coder}:${id}`);
+function renderItem(w) {
+  current = w; const it = itemOf(w), saved = mine.get(w);
+  const local = store.get(`draft:${coder}:${w}`);
   draft = saved ? { acts: saved.acts.map(a => ({ k: a.k, cats: [...a.cats], f: { ...a.f } })), note: saved.note || "" }
     : local || { acts: it.acts.map(a => ({ k: a.k, cats: [], f: {} })), note: "" };
   active = saved ? 0 : Math.max(0, draft.acts.findIndex(a => missing(a).length));
-  renderArticle(it); renderActs();
+  renderFocus(); renderArticle(it); renderActs();
   $("note").value = draft.note;
   $("prev").disabled = pos <= 0; $("fwd").disabled = pos >= history.length;
-  $("where").textContent = pos < history.length ? `Reviewing your article ${pos + 1} of ${history.length}` : `New article · ${it.acts.length} speech act${it.acts.length > 1 ? "s" : ""}`;
+  $("where").textContent = pos < history.length ? `Reviewing your article ${pos + 1} of ${history.length} in this task` : `New article · ${it.acts.length} speech act${it.acts.length > 1 ? "s" : ""}`;
   status(""); show("work"); window.scrollTo(0, 0);
+}
+function renderFocus() {
+  if (task === "all") { $("focus").hidden = true; return; }
+  const c = byCat[task]; $("focus").style.setProperty("--c", `var(${c.color})`);
+  $("focus").replaceChildren(el("div", { className: "eyebrow", textContent: "Coding one category" }), el("h3", { textContent: c.label }), el("p", { textContent: c.desc }));
+  $("focus").hidden = false;
 }
 function renderArticle(it) {
   $("art").replaceChildren(
@@ -271,18 +330,19 @@ function renderArticle(it) {
     el("div", { className: "meta" }, el("span", { textContent: it.country }), el("span", { textContent: it.source }), el("span", { textContent: it.date }),
       el("span", { textContent: "lang " + it.lang }), el("a", { href: it.url, target: "_blank", rel: "noopener", textContent: "Open the original article for context ↗" })));
 }
-function keyBtn(cat, a, i) {
-  const b = el("button", { type: "button" }, el("span", { textContent: cat.label }), el("kbd", { textContent: cat.key }));
-  b.style.setProperty("--c", `var(${cat.color})`);
-  b.setAttribute("aria-pressed", String(a.cats.includes(cat.id)));
-  b.onclick = e => { e.stopPropagation(); toggle(i, cat.id); };
+function keyBtn(opt, a, i) {
+  const b = el("button", { type: "button" }, el("span", { textContent: opt.label }), el("kbd", { textContent: opt.keys.join("/") }));
+  b.style.setProperty("--c", `var(${opt.color})`);
+  b.setAttribute("aria-pressed", String(a.cats.includes(opt.id)));
+  b.onclick = e => { e.stopPropagation(); toggle(i, opt.id); };
   return b;
 }
 function renderActs() {
-  const it = byId[current];
+  const it = itemOf(current);
   $("acts").replaceChildren(...draft.acts.map((a, i) => {
     const src = it.acts[i], ok = !missing(a).length;
-    const keys = el("div", { className: "keys" }, ...CATS.map(c => keyBtn(c, a, i)), el("span", { className: "sep" }), ...EXCL.map(c => keyBtn(c, a, i)));
+    const main = OPTS.filter(o => !EXCL.some(e => e.id === o.id) && o.id !== "absent"), rest = OPTS.filter(o => !main.includes(o));
+    const keys = el("div", { className: "keys" }, ...main.map(o => keyBtn(o, a, i)), el("span", { className: "sep" }), ...rest.map(o => keyBtn(o, a, i)));
     const fqs = a.cats.filter(c => byCat[c].q?.length).map(c => {
       const cat = byCat[c], box = el("div", { className: "fq" }); box.style.setProperty("--c", `var(${cat.color})`);
       for (const q of visibleQs(cat, a)) {
@@ -310,11 +370,12 @@ function renderActs() {
 function persistDraft() { if (!mine.has(current)) store.set(`draft:${coder}:${current}`, draft); }
 function toggle(i, id) {
   const a = draft.acts[i]; active = i;
-  const isExcl = EXCL.some(e => e.id === id);
+  const isExcl = EXCL_IDS.includes(id);
   if (a.cats.includes(id)) a.cats = a.cats.filter(c => c !== id);
-  else a.cats = isExcl ? [id] : [...a.cats.filter(c => !EXCL.some(e => e.id === c)), id];
+  else a.cats = isExcl ? [id] : [...a.cats.filter(c => !EXCL_IDS.includes(c)), id];
   cleanFollowups(a); persistDraft();
-  if (isExcl && a.cats.length && i < draft.acts.length - 1) active = i + 1;
+  // an exclusive answer with nothing to follow up finishes the act: move on
+  if (isExcl && a.cats.length && !byCat[id].q?.length && i < draft.acts.length - 1) active = i + 1;
   renderActs(); scrollActive();
 }
 function answer(i, k, v, many) {
@@ -330,12 +391,12 @@ function scrollActive() { const c = $("acts").children[active]; if (c) { const r
 async function openNext() {
   pos = history.length;
   if (api.central) await refreshState();
-  const id = pickNext();
-  if (!id) { current = null; show("done"); renderStats(); return; }
-  renderItem(id); renderStats();
-  if (!claims.get(id)?.has(coder)) {
-    claims.set(id, (claims.get(id) || new Map()).set(coder, { at: Date.now(), done: false }));
-    api.claim(coder, id).catch(() => status("Couldn't reserve this article. Your codes will still save.", true));
+  const w = pickNext();
+  if (!w) { current = null; show("done"); renderStats(); return; }
+  renderItem(w); renderStats();
+  if (!claims.get(w)?.has(coder)) {
+    claims.set(w, (claims.get(w) || new Map()).set(coder, { at: Date.now(), done: false }));
+    api.claim(coder, w).catch(() => status("Couldn't reserve this article. Your codes will still save.", true));
   }
 }
 async function save() {
@@ -343,15 +404,15 @@ async function save() {
   const bad = draft.acts.map((a, i) => [i, missing(a)]).filter(([, m]) => m.length);
   if (bad.length) { active = bad[0][0]; renderActs(); scrollActive(); return status(`Act ${bad[0][0] + 1} needs ${bad[0][1][0]}`, true); }
   writing = true; status("Saving…"); $("save").disabled = true;
-  const id = current, it = byId[id];
-  const body = { item: id, article_id: it.article_id, coder, cbv: CB_VERSION, at: Date.now(), note: $("note").value.trim().slice(0, 400),
+  const w = current, it = itemOf(w);
+  const body = { item: w, article: it.id, article_id: it.article_id, task, coder, cbv: CB_VERSION, at: Date.now(), note: $("note").value.trim().slice(0, 400),
     acts: draft.acts.map(a => ({ k: a.k, cats: a.cats, f: a.f })) };
   try {
-    await api.save(coder, id, body);
+    await api.save(coder, w, body);
     const reviewing = pos < history.length;
-    mine.set(id, body); store.del(`draft:${coder}:${id}`);
-    if (!reviewing) history.push(id);
-    claims.set(id, (claims.get(id) || new Map()).set(coder, { at: body.at, done: true }));
+    mine.set(w, body); store.del(`draft:${coder}:${w}`);
+    if (!reviewing) history.push(w);
+    claims.set(w, (claims.get(w) || new Map()).set(coder, { at: body.at, done: true }));
     writing = false; $("save").disabled = false; renderStats();
     if (reviewing) go(1); else openNext();
   } catch (e) {
@@ -361,23 +422,29 @@ async function save() {
 }
 function go(d) { const p = pos + d; if (p < 0 || p > history.length) return; pos = p; if (pos === history.length) openNext(); else renderItem(history[pos]); }
 
-// ---------- CSV (one row per speech act) ----------
-const COLS = ["coder", "article_id", "pool", "country", "source", "date", "url", "title", "act_n", "speaker", "speech", "categories",
+// ---------- CSV (one row per coder x task x speech act) ----------
+// In a single-category task only that category (and "bad") is judged: other category columns stay blank.
+const COLS = ["coder", "task", "article_id", "pool", "country", "source", "date", "url", "title", "act_n", "speaker", "speech", "categories",
   ...ALL.flatMap(c => [c.id, ...(c.q || []).map(q => c.id + "." + q.id)]), "article_note", "codebook_version", "saved_at"];
 function rowsFor(c, L) {
-  const it = byId[L.item];
+  const it = byId[L.article];
   return L.acts.map((a, i) => {
     const src = it.acts[i] || {};
-    const r = { coder: c, article_id: it.article_id, pool: it.pool, country: it.country, source: it.source, date: it.date, url: it.url, title: it.title,
-      act_n: a.k, speaker: src.speaker, speech: src.speech, categories: a.cats.join("|"), article_note: L.note, codebook_version: L.cbv, saved_at: new Date(L.at).toISOString() };
-    for (const cat of ALL) { r[cat.id] = a.cats.includes(cat.id) ? 1 : 0; for (const q of cat.q || []) { const v = a.f[cat.id + "." + q.id]; r[cat.id + "." + q.id] = Array.isArray(v) ? v.join("|") : (v ?? ""); } }
+    const r = { coder: c, task: L.task, article_id: it.article_id, pool: it.pool, country: it.country, source: it.source, date: it.date, url: it.url, title: it.title,
+      act_n: a.k, speaker: src.speaker, speech: src.speech, categories: a.cats.filter(x => x !== "absent").join("|"), article_note: L.note, codebook_version: L.cbv, saved_at: new Date(L.at).toISOString() };
+    for (const cat of ALL) {
+      const judged = L.task === "all" || cat.id === L.task || cat.id === "bad";
+      r[cat.id] = judged ? (a.cats.includes(cat.id) ? 1 : 0) : "";
+      for (const q of cat.q || []) { const v = a.f[cat.id + "." + q.id]; r[cat.id + "." + q.id] = Array.isArray(v) ? v.join("|") : (v ?? ""); }
+    }
     return COLS.map(k => r[k] ?? "");
   });
 }
-function downloadMine() {
+async function downloadMine() {
   const esc = v => { v = String(v ?? ""); return /[",\n\r]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v; };
   const lines = [COLS.join(",")];
-  for (const L of [...mine.values()].sort((a, b) => a.at - b.at)) for (const r of rowsFor(coder, L)) lines.push(r.map(esc).join(","));
+  const all = (await api.mine(coder).catch(() => [...mine.values()])).filter(L => L?.article && byId[L.article]);
+  for (const L of all.sort((a, b) => a.at - b.at)) for (const r of rowsFor(coder, L)) lines.push(r.map(esc).join(","));
   const a = el("a", { href: URL.createObjectURL(new Blob(["﻿" + lines.join("\r\n")], { type: "text/csv;charset=utf-8" })), download: `aid_speech_codes_${coder}_${new Date().toISOString().slice(0, 10)}.csv` });
   document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
 }
@@ -385,38 +452,45 @@ function downloadMine() {
 // ---------- guide ----------
 function renderGuide() {
   const dl = $("guide-dl");
-  dl.append(el("dt", { textContent: "Your task" }), el("dd", { textContent: "Each screen shows one news article and the speech acts extracted from it (translated into English where needed). For every speech act, pick every category that applies, then answer the follow-up questions that appear under it. Code what the speaker says, not the journalist's framing. Open the original article when you need context." }));
+  dl.append(el("dt", { textContent: "Your task" }), el("dd", { textContent: "Each screen shows one news article and the speech acts extracted from it (translated into English where needed). Code what the speaker says, not the journalist's framing. Open the original article when you need context." }),
+    el("dt", { textContent: "Two ways to code" }), el("dd", {}, el("ul", {},
+      el("li", { textContent: "All categories: for each speech act, mark every category that applies (they can combine), or None of these." }),
+      el("li", { textContent: "One category: for each speech act, answer whether that category is present (1 / Y) or not (0 / N). If present, answer its follow-up questions." }))));
   for (const c of ALL) {
     const sw = el("span", { className: "sw" }); sw.style.setProperty("--c", `var(${c.color})`);
     const dd = el("dd", { textContent: c.desc });
     if (c.q?.length) dd.append(el("ul", {}, ...c.q.map(q => el("li", { textContent: q.label + (q.showIf ? ` (asked only if the answer above is “${q.showIf[1]}”)` : "") + ": " + q.opts.map(o => o[1]).join(" / ") }))));
     dl.append(el("dt", {}, sw, document.createTextNode(c.label + " "), el("kbd", { className: "keyhelp", textContent: c.key })), dd);
   }
-  dl.append(el("dt", { className: "keyhelp", textContent: "Keys" }), el("dd", { className: "keyhelp", textContent: "1–3 toggle a category on the highlighted speech act; 0 = None of these; X = Not a speech act. J / ↓ next act, K / ↑ previous act. Enter saves the article once every act is coded. ← → move back and forward through your saved articles." }),
-    el("dt", { textContent: "Rules" }), el("dd", { textContent: "Categories can combine (an act can be both Pain and Autonomy). Use the note for hard calls. Don't discuss specific articles with other coders: some are coded by two people on purpose. Use the same coder code every session." }));
+  dl.append(el("dt", { className: "keyhelp", textContent: "Keys" }), el("dd", { className: "keyhelp", textContent: "All categories: 1–3 toggle a category on the highlighted speech act, 0 = None of these, X = Not a speech act. One category: 1 or Y = present, 0 or N = not present, X = not a speech act. J / ↓ next act, K / ↑ previous act. Enter saves the article once every act is coded. ← → move back and forward through your saved articles." }),
+    el("dt", { textContent: "Rules" }), el("dd", { textContent: "Use the note for hard calls. Don't discuss specific articles with other coders: some are coded by two people on purpose. Use the same coder code every session." }));
 }
 
 // ---------- start ----------
 async function begin() {
-  show("gate"); gate("Loading your codes…", "Fetching what you have already coded.");
-  try { mine = new Map((await api.mine(coder)).filter(x => x?.item && byId[x.item]).map(x => [x.item, x])); }
+  if (!task) return renderTaskPicker();
+  gate("Loading your codes…", "Fetching what you have already coded.");
+  let all;
+  try { all = (await api.mine(coder)).filter(x => x?.item && x.task === task && itemOf(x.item)); }
   catch (e) { return gate("Couldn't reach the project sheet", e.message + ". Check your connection and reload. If it keeps happening, tell your supervisor."); }
+  mine = new Map(all.map(x => [x.item, x]));
   history = [...mine.values()].sort((a, b) => a.at - b.at).map(x => x.item);
   $("done-text").hidden = !api.central;
+  if (api.central && !poller) poller = setInterval(async () => { if (!writing && !$("work").hidden && document.visibilityState === "visible" && await refreshState()) renderStats(); }, 90000);
   openNext();
-  if (api.central) setInterval(async () => { if (!writing && document.visibilityState === "visible" && await refreshState()) renderStats(); }, 90000);
 }
 async function start() {
   renderGuide();
   $("prev").onclick = () => go(-1); $("fwd").onclick = () => go(1); $("save").onclick = save;
   $("done-back").onclick = () => { if (history.length) { pos = history.length - 1; renderItem(history[pos]); } };
+  $("done-task").onclick = $("change-task").onclick = () => { if (!writing) renderTaskPicker(); };
   $("note").addEventListener("input", () => { if (draft) { draft.note = $("note").value; persistDraft(); } });
   $("dl").onclick = downloadMine;
   $("switch").onclick = () => { store.del("coder"); location.reload(); };
   document.addEventListener("keydown", e => {
     if (e.target.tagName === "INPUT" || $("work").hidden || e.metaKey || e.ctrlKey || e.altKey) return;
-    const k = e.key.toLowerCase(), c = ALL.find(x => x.key === k);
-    if (c) { e.preventDefault(); toggle(active, c.id); }
+    const k = e.key.toLowerCase(), o = OPTS.find(x => x.keys.includes(k));
+    if (o) { e.preventDefault(); toggle(active, o.id); }
     else if (k === "j" || k === "arrowdown") { e.preventDefault(); active = Math.min(active + 1, draft.acts.length - 1); renderActs(); scrollActive(); }
     else if (k === "k" || k === "arrowup") { e.preventDefault(); active = Math.max(active - 1, 0); renderActs(); scrollActive(); }
     else if (k === "enter") { e.preventDefault(); save(); }
@@ -426,7 +500,7 @@ async function start() {
 
   // project key comes in the RA's link (#k=...) and is remembered on this computer
   const hk = new URLSearchParams(location.hash.slice(1)).get("k");
-  if (hk) { store.set("key", hk); history_replace(); }
+  if (hk) { store.set("key", hk); try { window.history.replaceState(null, "", location.pathname + location.search); } catch {} }
   const key = store.get("key");
   if (CONFIG.BACKEND_URL) {
     if (!key) return gate("Use the link your supervisor sent", "This page needs the project key that is part of that link (it ends in #k=…). Open the full link once on this computer.");
@@ -436,6 +510,7 @@ async function start() {
   try { items = await (await fetch("data/articles.json")).json(); } catch { return gate("Couldn't load the speech acts", "Reload the page. If this keeps happening, tell your supervisor."); }
   byId = Object.fromEntries(items.map(it => [it.id, it]));
 
+  const t = store.get("task"); if (t && (t === "all" || CATS.some(c => c.id === t))) setTask(t);
   coder = store.get("coder") || "";
   if (!coder) { show("onboard"); $("guide").open = true; $("code-input").focus(); }
   else begin();
@@ -446,7 +521,6 @@ async function start() {
     coder = v; store.set("coder", v); $("guide").open = false; begin();
   });
 }
-function history_replace() { try { window.history.replaceState(null, "", location.pathname + location.search); } catch {} }
 start();
 </script>
 </body>
