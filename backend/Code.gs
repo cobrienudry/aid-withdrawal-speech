@@ -18,6 +18,11 @@ function doPost(e) {
 }
 
 function handle_(p) {
+  // Counts only (no coder codes, names or text), so the lab landing page can show progress without the key.
+  if (p.action === 'progress') {
+    try { return out_({ ok: true, tasks: progress_() }); }
+    catch (err) { return out_({ ok: false, error: String(err.message || err) }); }
+  }
   var key = PropertiesService.getScriptProperties().getProperty('KEY');
   if (!key || p.k !== key) return out_({ ok: false, error: 'Wrong or missing project key' });
   try {
@@ -47,6 +52,21 @@ function savesSheet_() { return sheet_('saves', ['coder', 'item', 'at', 'json'])
 function readClaims_() {
   var v = claimsSheet_().getDataRange().getValues(), out = [];
   for (var i = 1; i < v.length; i++) out.push({ item: String(v[i][0]), coder: String(v[i][1]), at: Number(v[i][2]), done: v[i][3] === true || v[i][3] === 'TRUE' });
+  return out;
+}
+// { task: [articles done, articles being coded now] }; unfinished claims older than 30 minutes don't count.
+function progress_() {
+  var stale = Date.now() - 30 * 60 * 1000, by = {}, out = {};
+  readClaims_().forEach(function (c) {
+    var i = c.item.lastIndexOf('-'); if (i < 1) return;
+    var art = c.item.slice(0, i), task = c.item.slice(i + 1);
+    var t = by[task] = by[task] || { done: {}, doing: {} };
+    if (c.done) t.done[art] = 1; else if (c.at > stale) t.doing[art] = 1;
+  });
+  Object.keys(by).forEach(function (task) {
+    var t = by[task], doing = Object.keys(t.doing).filter(function (a) { return !t.done[a]; }).length;
+    out[task] = [Object.keys(t.done).length, doing];
+  });
   return out;
 }
 function upsertClaim_(item, coder, done) {
