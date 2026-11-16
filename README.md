@@ -3,11 +3,12 @@
 Live: https://cobrienudry.github.io/aid-withdrawal-speech/
 
 RAs see one news article at a time with the speech acts extracted from it. The codebook
-(`assets/codebook.js`) has **themes** (Pain, Autonomy, Technocratic, Security, Accommodation, Praise:
-present or not, several can apply, each with follow-up questions) and **details** answered for every
-speech act (Topic, Speaker authority / type, Venue / formality). RAs choose a task:
+(`assets/codebook.js`, v3) has **themes** (Blame, Pain and suffering, Accommodation, Praise, Capacity / autonomy,
+Technocratic, Security concerns, Outside option: present or not, several can apply, each with follow-up questions)
+and **details** answered for every speech act (Relevance, Responding to + speech date, Speaker, Venue / formality).
+Some follow-ups are short typed answers (speech date, a blame/praise target not on the list). RAs choose a task:
 
-- **All categories, speech by speech**: mark every theme that applies (keys 1–6, 0 = none of these,
+- **All categories, speech by speech**: mark every theme that applies (keys 1–8, 0 = none of these,
   X = not a speech act), answer the follow-ups, then the three details.
 - **One theme** (e.g. *Pain only*): present (1/Y) or not (0/N) for each speech act, plus follow-ups.
 - **One detail** (e.g. *Venue only*): answer just that question for each speech act (keys 1–9).
@@ -60,7 +61,7 @@ If you change `Code.gs`, use **Deploy → Manage deployments → Edit → New ve
 
 `coder, task, article_id, pool, stratum, country, source, date, url, title, act_n, speaker, speaker_name, speaker_title, speech, categories,`
 then one 0/1 column per theme (blank when the task did not judge that theme) and one column per
-follow-up question (e.g. `pain.aid_specific`, `accommodation.type`, multiple answers joined by `|`),
-then `topic.topic`, `speaker.type`, `venue.venue`, then
+follow-up question (e.g. `pain.aid_withdrawal`, `accommodation.type`, multiple answers joined by `|`),
+then the detail columns (`relevance.aid`, `relevance.us_withdrawal`, `response.topic`, `response.date_source`, `response.speech_date`, `speaker.type`, `speaker.authority`, `venue.venue`, `venue.formality`), then
 `article_note, codebook_version, saved_at`. `article_id` and `act_n` match `article_id` and
 `speaker_n` in `speech_Nov26.csv` / `speech_Nov26_french.csv`.

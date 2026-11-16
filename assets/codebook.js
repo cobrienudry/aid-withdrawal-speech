@@ -1,50 +1,79 @@
 // CODEBOOK. Edit here; the app and its coding guide both read this file.
 // Bump CB_VERSION whenever a category or question changes: it is saved with every code.
-window.CB_VERSION = "v1.1-2026-11-05";
+// v3 (2026-11-16) follows the team's category list; see speech_categories/v3/codebook_v3.md in the parent project.
+window.CB_VERSION = "v3.0-2026-11-16";
 
-// Actor lists reused by several questions.
+// Actor list reused by blame, accommodation and praise. A target not on the list: pick "Other"
+// and type it in the box; recurring new targets get added here.
 const ACTORS = [
-  ["us", "United States"], ["china", "China"], ["russia", "Russia"], ["eu", "EU / European donors"],
-  ["gulf", "Gulf states / Turkey"], ["un", "UN / multilateral agency"], ["ifi", "World Bank / IMF"],
-  ["recipient_gov", "Recipient government"], ["ngo", "NGO / civil society"], ["other", "Other"],
+  ["us", "United States"], ["other_donor", "Other donor country"], ["donors_general", "Donors in general"],
+  ["china", "China"], ["russia", "Russia"], ["eu_europe", "EU / Europe"], ["gulf_turkey", "Gulf states / Turkey"],
+  ["multilateral", "UN / World Bank / IMF / multilateral"], ["own_gov", "Own government"], ["prev_gov", "Previous government"],
+  ["other_african_gov", "Other African government"], ["opposition", "Opposition"], ["ngo", "NGO / civil society"],
+  ["private_sector", "Private sector"], ["public", "The public / citizens"], ["other", "Other (type below)"],
 ];
+const otherBox = (on = "target") => ({ id: "other_target", label: "If other: who?", text: true, placeholder: "name the target", showIf: [on, "other"] });
 
 // THEMES: present or not in a speech act. Several can apply at once.
 // key = keyboard shortcut in "All categories"; q = follow-up questions asked when the theme is present.
+// Question kinds: opts (one answer), many: true (all that apply; `only` = answer that clears the others),
+// text: true (short typed answer), showIf: [question id, value or [values]] (asked only after that answer;
+// for an all-that-apply question, when any of those values is picked).
 window.CATS = [
-  { id: "pain", key: "1", label: "Pain", color: "--pain",
-    desc: "The speaker describes harm, hardship, suffering, loss or risk to people, services or the economy.",
+  { id: "blame", key: "1", label: "Blame", color: "--pain",
+    desc: "The speaker assigns fault for a problem to someone (a government, a donor, a group). Describing a problem without saying whose fault it is is not blame.",
     q: [
-      { id: "aid_specific", label: "Is the pain specific to aid withdrawal?", opts: [["yes", "Yes"], ["no", "No"], ["unclear", "Unclear"]] },
-      { id: "blame", label: "Is blame assigned?", showIf: ["aid_specific", "yes"], opts: [["yes", "Yes"], ["no", "No"]] },
+      { id: "target", label: "Who is blamed? (all that apply)", many: true, opts: ACTORS },
+      otherBox(),
     ] },
-  { id: "autonomy", key: "2", label: "Autonomy", color: "--auto",
-    desc: "The speaker stresses self-reliance, sovereignty, national ownership, reducing dependence, or the right to set the country's own priorities.",
+  { id: "pain", key: "2", label: "Pain and suffering", color: "--sec",
+    desc: "The speaker describes pain and suffering, broadly defined: deaths, disease, hunger, job losses, hardship, risk to people or services.",
     q: [
-      { id: "basis", label: "What is the autonomy claim based on?", opts: [["capacity", "Capacity / technocratic"], ["ideological", "Ideological"], ["both", "Both"]] },
+      { id: "aid_withdrawal", label: "Is the suffering due to aid withdrawal or aid cuts?", opts: [["yes", "Yes"], ["no", "No"]] },
+      { id: "blame", label: "Suffering due to the withdrawal: is blame assigned? (all that apply)", showIf: ["aid_withdrawal", "yes"], many: true, only: "none",
+        opts: [["none", "No blame assigned"], ...ACTORS] },
+      otherBox("blame"),
     ] },
-  { id: "technocratic", key: "3", label: "Technocratic", color: "--tech",
-    desc: "The speech is in a technical register: programme or finance jargon, budget lines, indicators, procedures, monitoring and evaluation.",
+  { id: "accommodation", key: "3", label: "Accommodation", color: "--acc",
+    desc: "The speaker keeps the relationship going by accommodating an outside power or its demands: reaffirming the partnership, or offering security cooperation, data access, critical minerals, taking refugees/deportees, trade concessions, policy alignment.",
     q: [
-      { id: "numbers", label: "Does it use numbers or statistics?", opts: [["yes", "Yes"], ["no", "No"]] },
+      { id: "type", label: "Which kind? (all that apply)", many: true, opts: [
+        ["partnership", "Reaffirming partnership"], ["security_coop", "Security cooperation"], ["data_access", "Data access"],
+        ["critical_minerals", "Critical minerals access"], ["refugees", "Refugees / deportees"], ["trade_concession", "Trade concession"],
+        ["policy_alignment", "Policy alignment"], ["other", "Other"]] },
+      { id: "target", label: "Toward whom? (all that apply)", many: true, opts: ACTORS },
+      otherBox(),
     ] },
-  { id: "security", key: "4", label: "Security", color: "--sec",
-    desc: "The speaker talks about security: conflict, terrorism, insurgency, defence, policing or military cooperation.",
-    q: [] },
-  { id: "accommodation", key: "5", label: "Accommodation", color: "--acc",
-    desc: "The speaker accommodates a foreign actor: reaffirms the partnership, offers something, cooperates on security, or defers and flatters.",
-    q: [
-      { id: "actor", label: "Who is being accommodated? (all that apply)", many: true, opts: ACTORS },
-      { id: "type", label: "Which kind? (all that apply)", many: true,
-        opts: [["partnership", "Reaffirming partnership"], ["offers", "Offers to do things"], ["security", "Security cooperation"], ["kowtowing", "Kowtowing"]] },
-    ] },
-  { id: "praise", key: "6", label: "Praise", color: "--praise",
-    desc: "The speaker praises an actor in a way that bears on aid: thanks or credits a donor, a programme, or a government for aid-related work.",
+  { id: "praise", key: "4", label: "Praise", color: "--praise",
+    desc: "The speaker praises, thanks or commends an actor. Praise evaluates an actor positively; accommodation offers or concedes something. An act can be both.",
     q: [
       { id: "target", label: "Who is praised? (all that apply)", many: true, opts: ACTORS },
-      { id: "aid_related", label: "Is the praise about aid itself?", opts: [["yes", "Yes"], ["no", "No"]] },
-      { id: "kind", label: "What kind of praise? (all that apply)", many: true,
-        opts: [["results", "Aid results / programme"], ["generosity", "Generosity / gratitude"], ["partnership", "Partnership / friendship"], ["leadership", "Leadership / governance"], ["other", "Other"]] },
+      otherBox(),
+      { id: "about", label: "Is the praise about aid?", opts: [["aid", "Aid-related"], ["general", "General (not about aid)"], ["both", "Both"]] },
+    ] },
+  { id: "capaut", key: "5", label: "Capacity / autonomy", color: "--auto",
+    desc: "Capacity (technical): we can make this happen, e.g. filling the gap from aid cuts with concrete financing or domestic programmes. Autonomy (political): independence, less reliance on the US or donors, sovereignty, “we can stand on our own”.",
+    q: [
+      { id: "basis", label: "Which?", opts: [["capacity", "Capacity (technical)"], ["autonomy", "Autonomy (ideological)"], ["both", "Both"]] },
+    ] },
+  { id: "technocratic", key: "6", label: "Technocratic", color: "--tech",
+    desc: "The speaker talks about aid or policy in technical, apolitical terms: figures, programme mechanics, implementation. Can combine with other themes; “pure technocratic” is computed later as technocratic with no other theme.",
+    q: [
+      { id: "style", label: "Which style?", opts: [["apolitical", "Apolitical (plain technical information)"], ["evasive", "Jargon to avoid a political stance"]] },
+    ] },
+  { id: "security", key: "7", label: "Security concerns", color: "--venue",
+    desc: "The speaker raises security concerns: terrorism, conflict, instability, border or migration security, military cooperation.",
+    q: [] },
+  { id: "outside", key: "8", label: "Outside option", color: "--spk",
+    desc: "The speaker mentions an outside (non-US, non-domestic) source of funding or support: other donors, China, a trade agreement, loans or bonds, investment. Domestic money is capacity, not an outside option.",
+    q: [
+      { id: "who", label: "From whom? (all that apply)", many: true, opts: [
+        ["western_io", "Western donors / IOs (EU, Japan, World Bank, IMF, UN, Global Fund)"], ["china", "China"],
+        ["other_bilateral", "Other bilateral (Gulf, India, Russia, Turkey…)"], ["african_regional", "African / regional (AfCFTA, AfDB, AU)"],
+        ["private", "Private / philanthropy"]] },
+      { id: "type", label: "What type? (all that apply)", many: true, opts: [
+        ["foreign_aid", "Foreign aid"], ["trade_agreement", "Trade agreement"], ["finance", "Finance (loans, bonds, debt)"], ["investment", "Investment"]] },
+      { id: "proactive", label: "How is it raised?", opts: [["fallback", "As a replacement: “we will be fine, we have X”"], ["incidental", "Mentioned, not as a replacement"]] },
     ] },
 ];
 
@@ -55,24 +84,44 @@ window.EXCL = [
   { id: "irrelevant", key: "r", label: "Not relevant to dataset", color: "--irr", desc: "A real speech act, but off-topic for this project. No further questions are asked; the next speech act opens. If the whole article is off-topic, use “Whole article not relevant” above the speech acts instead." },
 ];
 
-// DETAILS: answered for every speech act (unless it is "Not a speech act").
+// DETAILS: answered for every speech act (unless it is flagged). The first question of each is the
+// one number keys answer in a one-detail task, so it must be a choice question.
 window.ATTRS = [
-  { id: "topic", label: "Topic", color: "--topic",
-    desc: "Specific topics the speech act mentions.",
-    q: [{ id: "topic", label: "Which of these topics does it mention? (all that apply)", many: true, only: "neither",
-      opts: [["pepfar", "PEPFAR"], ["tariffs", "Tariffs"], ["neither", "Neither"]] }] },
-  { id: "speaker", label: "Speaker authority / type", color: "--spk",
-    desc: "Who is speaking, by their position. Use the speaker's title and the article.",
-    q: [{ id: "type", label: "What kind of speaker is this?", opts: [
-      ["head_of_state", "Head of state / government"], ["minister", "Minister / government official"], ["legislator", "Legislator"],
-      ["opposition", "Opposition politician"], ["local_leader", "Local / traditional leader"], ["donor_official", "Donor government official"],
-      ["multilateral", "UN / multilateral official"], ["ngo", "NGO / civil society"], ["expert", "Expert / academic"],
-      ["business", "Business"], ["media", "Journalist / media"], ["citizen", "Ordinary citizen / beneficiary"],
-      ["organisation", "Organisation (no named person)"], ["other", "Other"]] }] },
+  { id: "relevance", label: "Relevance", color: "--topic",
+    desc: "Aid-relevant: about foreign aid or development/humanitarian assistance from any donor, at any time. US withdrawal: about the 2025 US aid withdrawal (USAID freeze/closure, PEPFAR disruption, stop-work orders, US exit from WHO/UN funding).",
+    q: [
+      { id: "aid", label: "Is it aid-relevant?", opts: [["1", "Yes"], ["0", "No"]] },
+      { id: "us_withdrawal", label: "Is it relevant to the US aid withdrawal?", opts: [["1", "Yes"], ["0", "No"]] },
+    ] },
+  { id: "response", label: "Responding to", color: "--topic",
+    desc: "The action or event the speech act responds to. The speech date (not the publication date) helps tell which: use the text (“on Tuesday”, “last week”, “on 14 March”).",
+    q: [
+      { id: "topic", label: "What is it responding to? (all that apply)", many: true, only: "none", opts: [
+        ["usaid_cuts", "US aid freeze / USAID closure"], ["pepfar", "PEPFAR"], ["us_who_un_exit", "US exit from WHO / UN funding"],
+        ["tariffs", "US tariffs"], ["agoa", "AGOA"], ["us_visa_travel_ban", "US visas / travel ban"], ["us_deportations", "US deportations"],
+        ["us_other", "Other US action"], ["other_donor_cuts", "Other donors' cuts"], ["donor_programme", "Ordinary aid programme / launch"],
+        ["debt_finance", "IMF / World Bank / debt"], ["conflict", "Conflict / crisis"], ["migration", "Migration"],
+        ["domestic_policy", "Domestic policy / politics"], ["other", "Other (type below)"], ["none", "Nothing specific"]] },
+      { id: "topic_other", label: "If other: what?", text: true, placeholder: "name the event", showIf: ["topic", "other"] },
+      { id: "date_source", label: "When was it said?", opts: [["pub", "Same as publication date / not stated"], ["stated", "Date given in the text"], ["relative", "Worked out (“yesterday”, “on Monday”)"]] },
+      { id: "speech_date", label: "Speech date", text: true, placeholder: "YYYY-MM-DD", showIf: ["date_source", ["stated", "relative"]] },
+    ] },
+  { id: "speaker", label: "Speaker", color: "--spk",
+    desc: "Who is speaking. Leader = president / prime minister, or wording like “the Government of Kenya insisted”. High-level = ministers, diplomats, cabinet directors. Low-level = MPs, senators, party representatives, local politicians, attachés. Technocrats = government or diplomatic staff, technical agencies (no political agenda). Reports = a report, study, poll, newspaper or memo cited as the source.",
+    q: [
+      { id: "type", label: "What kind of speaker?", opts: [
+        ["leader", "State: leader"], ["high_gov", "State: high-level government"], ["low_gov", "State: low-level government"], ["technocrat", "State: technocrat"],
+        ["io", "IO representative"], ["ngo", "NGO representative"], ["academia", "Academia / expert"], ["private", "Private sector"],
+        ["report", "Report / study / media"], ["other", "Other (citizen, religious or traditional leader…)"]] },
+      { id: "authority", label: "Can the speaker commit a government?", opts: [["1", "Yes"], ["0", "No"]] },
+    ] },
   { id: "venue", label: "Venue / formality", color: "--venue",
-    desc: "Where or how the statement was made, as far as the article says.",
-    q: [{ id: "venue", label: "Where or how was it said?", opts: [
-      ["rally", "Campaign rally"], ["press_conf", "Press conference"], ["speech", "Official speech / address"], ["interview", "Interview"],
-      ["parliament", "Parliament / legislature"], ["statement", "Written statement / press release"], ["social", "Social media"],
-      ["event", "Meeting / event / ceremony"], ["report", "Report / document"], ["unclear", "Unclear / not stated"]] }] },
+    desc: "Where or how the statement was made, and how formal it is. High: official statements, formal addresses (parliament, summits, budget speech), court. Medium: press conferences, events, reports. Low: interviews, social media, informal remarks.",
+    q: [
+      { id: "venue", label: "Where or how was it said?", opts: [
+        ["official_statement", "Official statement / press release"], ["formal_address", "Formal address (parliament, summit, UN)"],
+        ["press_conference", "Press conference"], ["interview", "Interview"], ["event_remarks", "Event / launch / ceremony"],
+        ["social_media", "Social media"], ["publication", "Report / publication"], ["court", "Court"], ["unclear", "Unclear / not stated"]] },
+      { id: "formality", label: "Formality", opts: [["high", "High"], ["medium", "Medium"], ["low", "Low"]] },
+    ] },
 ];

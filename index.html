@@ -119,6 +119,7 @@ button.btn.small { font-size: 12.5px; padding: 4px 9px; }
 .fq.detail { border-left-style: dotted; }
 .guide dt.gh { grid-column: 1 / -1; margin-top: 8px; font-size: 12px; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); }
 .guide dt.gh + dd { grid-column: 1 / -1; margin-top: -8px; }
+.qtext { font: 14px var(--sans); color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 4px 8px; min-width: 0; width: 16em; max-width: 100%; }
 .chip kbd { font: 400 11px var(--mono); opacity: .7; margin-right: 6px; }
 .spacer { flex: 1; }
 button.btn.irr { border-color: var(--irr); color: var(--ink); }
@@ -327,7 +328,12 @@ function renderStats() {
 }
 
 // ---------- validation ----------
-function visibleQs(cat, a) { return (cat.q || []).filter(q => !q.showIf || a.f[cat.id + "." + q.showIf[0]] === q.showIf[1]); }
+function shown(q, cat, a) {
+  if (!q.showIf) return true;
+  const v = a.f[cat.id + "." + q.showIf[0]], want = [].concat(q.showIf[1]);
+  return Array.isArray(v) ? v.some(x => want.includes(x)) : want.includes(v);
+}
+function visibleQs(cat, a) { return (cat.q || []).filter(q => shown(q, cat, a)); }
 // Only the main answer is required (a theme, None of these, or a skip flag); follow-ups and details are optional.
 function missing(a) {
   return !a.cats.length && !isAttr(task) ? [task === "all" ? "a category" : "an answer"] : [];
@@ -439,6 +445,12 @@ function renderActs() {
         const k = c + "." + q.id, v = a.f[k];
         const row = el("div", { className: "q" + (v == null || (Array.isArray(v) && !v.length) ? " miss" : "") }, el("span", { textContent: cat.label + " · " + q.label }));
         const numbered = c === task && isAttr(task) && q === cat.q[0];   // number keys pick these
+        if (q.text) {   // short typed answer: saved as typed, no re-render while typing
+          const inp = el("input", { type: "text", className: "qtext", value: v || "", placeholder: q.placeholder || "", maxLength: 80 });
+          inp.onclick = e => e.stopPropagation();
+          inp.oninput = () => { const t = inp.value.trim(); if (t) draft.acts[i].f[k] = t; else delete draft.acts[i].f[k]; row.classList.toggle("miss", !t); persistDraft(); };
+          row.append(inp); box.append(row); continue;
+        }
         for (const [j, [ov, ol]] of q.opts.entries()) {
           const on = q.many ? (v || []).includes(ov) : v === ov;
           const ch = el("button", { type: "button", className: "chip", textContent: ol }); ch.setAttribute("aria-pressed", String(on));
@@ -563,20 +575,20 @@ function renderGuide() {
   const dl = $("guide-dl");
   dl.append(el("dt", { textContent: "Your task" }), el("dd", { textContent: "Each screen shows one news article and the speech acts extracted from it (translated into English where needed). Code what the speaker says, not the journalist's framing. Click “Show full article” when you need context; speaker names are highlighted in the text." }),
     el("dt", { textContent: "Ways to code" }), el("dd", {}, el("ul", {},
-      el("li", { textContent: "All categories: for each speech act, mark every theme that applies (they can combine) or None of these, answer the follow-ups, then the three details (topic, speaker, venue)." }),
+      el("li", { textContent: "All categories: for each speech act, mark every theme that applies (they can combine) or None of these, answer the follow-ups, then the details (relevance, what it responds to, speaker, venue)." }),
       el("li", { textContent: "One theme: for each speech act, answer whether that theme is present (1 / Y) or not (0 / N). If present, answer its follow-up questions." }),
       el("li", { textContent: "One detail: for each speech act, answer just that question (keys 1–9 pick an option)." }))),
     el("dt", { className: "gh", textContent: "Themes" }), el("dd", { textContent: "Present or not in a speech act. Several can apply." }));
   const guideItem = c => {
     const sw = el("span", { className: "sw" }); sw.style.setProperty("--c", `var(${c.color})`);
     const dd = el("dd", { textContent: c.desc });
-    if (c.q?.length) dd.append(el("ul", {}, ...c.q.map(q => el("li", { textContent: q.label + (q.showIf ? ` (asked only if the answer above is “${q.showIf[1]}”)` : "") + ": " + q.opts.map(o => o[1]).join(" / ") }))));
+    if (c.q?.length) dd.append(el("ul", {}, ...c.q.map(q => el("li", { textContent: q.label + (q.showIf ? ` (asked only if the answer above is “${[].concat(q.showIf[1]).join("” or “")}”)` : "") + ": " + (q.text ? "typed answer" : q.opts.map(o => o[1]).join(" / ")) }))));
     dl.append(el("dt", {}, sw, document.createTextNode(c.label + " "), c.key ? el("kbd", { className: "keyhelp", textContent: c.key }) : null), dd);
   };
   ALL.forEach(guideItem);
   dl.append(el("dt", { className: "gh", textContent: "Details" }), el("dd", { textContent: "Answered for every speech act, unless it is Not a speech act." }));
   ATTRS.forEach(guideItem);
-  dl.append(el("dt", { className: "keyhelp", textContent: "Keys" }), el("dd", { className: "keyhelp", textContent: "All categories: 1–6 toggle a theme on the highlighted speech act, 0 = None of these, X = Not a speech act, R = Not relevant to dataset; click the detail answers. Shift+R = whole article not relevant (saves and moves on). One theme: 1 or Y = present, 0 or N = not present, X = not a speech act. One detail: 1–9 pick an answer, X = not a speech act. J / ↓ next act, K / ↑ previous act. Enter saves the article once every act has its main answer. ← → move back and forward through your saved articles." }),
+  dl.append(el("dt", { className: "keyhelp", textContent: "Keys" }), el("dd", { className: "keyhelp", textContent: "All categories: 1–8 toggle a theme on the highlighted speech act, 0 = None of these, X = Not a speech act, R = Not relevant to dataset; click the detail answers. Shift+R = whole article not relevant (saves and moves on). One theme: 1 or Y = present, 0 or N = not present, X = not a speech act. One detail: 1–9 pick an answer, X = not a speech act. J / ↓ next act, K / ↑ previous act. Enter saves the article once every act has its main answer. ← → move back and forward through your saved articles." }),
     el("dt", { textContent: "Rules" }), el("dd", { textContent: "Each speech act needs its main answer (a theme, None of these, Not a speech act or Not relevant). Follow-up questions and details are optional: answer them when the text supports an answer and leave them blank otherwise. Use the note for hard calls. Don't discuss specific articles with other coders: some are coded by two people on purpose. Use the same coder code every session." }));
 }
 
