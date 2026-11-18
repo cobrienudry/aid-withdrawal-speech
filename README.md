@@ -6,9 +6,9 @@ RAs see one news article at a time with the speech acts extracted from it. The c
 (`assets/codebook.js`, v3) has **themes** (Blame, Pain and suffering, Accommodation, Praise, Capacity / autonomy,
 Technocratic, Security concerns, Outside option: present or not, several can apply, each with follow-up questions)
 and **details** answered for every speech act (Relevance, Responding to + speech date, Speaker, Venue / formality).
-Some follow-ups are short typed answers (speech date, a blame/praise target not on the list). RAs choose a task:
+Every multiple-choice question (except plain yes/no) has an **Other** answer that opens a typed box (exported as `<question>_other`), and *All categories* has an **Other theme** (key 9) with a box to describe it. Some follow-ups are short typed answers (speech date, a blame/praise target not on the list). RAs choose a task:
 
-- **All categories, speech by speech**: mark every theme that applies (keys 1–8, 0 = none of these,
+- **All categories, speech by speech**: mark every theme that applies (keys 1–8, 9 = other theme, 0 = none of these,
   X = not a speech act), answer the follow-ups, then the three details.
 - **One theme** (e.g. *Pain only*): present (1/Y) or not (0/N) for each speech act, plus follow-ups.
 - **One detail** (e.g. *Venue only*): answer just that question for each speech act (keys 1–9).

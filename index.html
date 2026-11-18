@@ -250,7 +250,7 @@ function renderTaskPicker() {
   $("tasks").replaceChildren(
     card("all", "All categories, speech by speech", "For each speech act, mark every category that applies. Best for a full first pass."),
     el("h3", { className: "taskhead", textContent: "One theme at a time" }),
-    ...CATS.map(c => card(c.id, c.label + " only", `For each speech act, decide whether ${c.label.toLowerCase()} appears${c.q.length ? ", then answer the follow-up questions" : ""}.`)),
+    ...CATS.filter(c => !c.noTask).map(c => card(c.id, c.label + " only", `For each speech act, decide whether ${c.label.toLowerCase()} appears${c.q.length ? ", then answer the follow-up questions" : ""}.`)),
     el("h3", { className: "taskhead", textContent: "One detail at a time" }),
     ...ATTRS.map(c => card(c.id, c.label + " only", `For each speech act, answer: ${c.q[0].label.replace(/ \(.*\)$/, "")}`)));
   show("taskpick");

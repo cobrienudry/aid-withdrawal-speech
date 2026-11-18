@@ -1,7 +1,8 @@
 // CODEBOOK. Edit here; the app and its coding guide both read this file.
 // Bump CB_VERSION whenever a category or question changes: it is saved with every code.
+// v3.1 (2026-11-18): every choice question gets "Other" + a typed box; "Other theme" added.
 // v3 (2026-11-16) follows the team's category list; see speech_categories/v3/codebook_v3.md in the parent project.
-window.CB_VERSION = "v3.0-2026-11-16";
+window.CB_VERSION = "v3.1-2026-11-18";
 
 // Actor list reused by blame, accommodation and praise. A target not on the list: pick "Other"
 // and type it in the box; recurring new targets get added here.
@@ -40,7 +41,7 @@ window.CATS = [
       { id: "type", label: "Which kind? (all that apply)", many: true, opts: [
         ["partnership", "Reaffirming partnership"], ["security_coop", "Security cooperation"], ["data_access", "Data access"],
         ["critical_minerals", "Critical minerals access"], ["refugees", "Refugees / deportees"], ["trade_concession", "Trade concession"],
-        ["policy_alignment", "Policy alignment"], ["other", "Other"]] },
+        ["policy_alignment", "Policy alignment"], ["other", "Other (type below)"]] },
       { id: "target", label: "Toward whom? (all that apply)", many: true, opts: ACTORS },
       otherBox(),
     ] },
@@ -74,6 +75,11 @@ window.CATS = [
       { id: "type", label: "What type? (all that apply)", many: true, opts: [
         ["foreign_aid", "Foreign aid"], ["trade_agreement", "Trade agreement"], ["finance", "Finance (loans, bonds, debt)"], ["investment", "Investment"]] },
       { id: "proactive", label: "How is it raised?", opts: [["fallback", "As a replacement: “we will be fine, we have X”"], ["incidental", "Mentioned, not as a replacement"]] },
+    ] },
+  { id: "other", key: "9", label: "Other theme", color: "--none", noTask: true,
+    desc: "A theme that matters here but is not on the list. Mark it and describe the theme in a few words. Recurring answers become new themes.",
+    q: [
+      { id: "what", label: "What theme?", text: true, placeholder: "describe the theme" },
     ] },
 ];
 
@@ -125,3 +131,22 @@ window.ATTRS = [
       { id: "formality", label: "Formality", opts: [["high", "High"], ["medium", "Medium"], ["low", "Low"]] },
     ] },
 ];
+
+// Every choice question (not plain yes/no) gets an "Other" answer and, right after it, a typed box
+// asked only when Other is picked. Questions that already have one keep theirs.
+[...CATS, ...ATTRS].forEach(cat => {
+  const out = [];
+  cat.q.forEach(q => {
+    out.push(q);
+    if (q.text || !q.opts) return;
+    const ids = q.opts.map(o => o[0]);
+    if (ids.every(id => ["yes", "no", "1", "0"].includes(id))) return;
+    if (!ids.includes("other")) {
+      const tail = ids.length && ["none", "unclear"].includes(ids[ids.length - 1]) ? 1 : 0;   // keep "none"/"unclear" last
+      q.opts = [...q.opts.slice(0, q.opts.length - tail), ["other", "Other (type below)"], ...q.opts.slice(q.opts.length - tail)];
+    }
+    const hasBox = cat.q.some(x => x.text && x.showIf && x.showIf[0] === q.id);
+    if (!hasBox) out.push({ id: q.id + "_other", label: "If other: what?", text: true, placeholder: "type it", showIf: [q.id, "other"] });
+  });
+  cat.q = out;
+});
